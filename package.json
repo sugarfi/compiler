@@ -1,0 +1,29 @@
+{
+    "name": "glaze",
+    "version": "0.1.0",
+    "author": "GiraffeKey <giraffekey@tutanota.com>",
+    "license": "GPL-3.0",
+    "main": "lib/index.js",
+    "bin": {
+        "glaze": "lib/index.js"
+    },
+    "scripts": {
+        "cli": "neon build && node .",
+        "build": "neon build --release",
+        "clean": "neon clean",
+        "lint": "eslint . --fix"
+    },
+    "dependencies": {
+        "commander": "^6.1.0",
+        "csso": "^4.0.3",
+        "neon-cli": "^0.4.0",
+        "postcss": "^8.0.5",
+        "purgecss": "^2.3.0",
+        "terser": "^5.3.2"
+    },
+    "devDependencies": {
+        "eslint": "^7.9.0",
+        "eslint-config-airbnb-base": "^14.2.0",
+        "eslint-plugin-import": "^2.22.0"
+    }
+}
