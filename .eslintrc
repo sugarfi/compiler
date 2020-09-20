@@ -4,15 +4,16 @@
         "es2020": true,
         "node": true
     },
-    "extends": [
-        "airbnb-base"
-    ],
     "parserOptions": {
         "ecmaVersion": 11
     },
     "rules": {
         "comma-dangle": ["error", "always-multiline"],
         "indent": ["error", 4],
+        "no-unused-vars": "error",
+        "no-use-before-define": "error",
+        "no-var": "error",
+        "prefer-const": "error",
         "quotes": ["error", "double"],
         "semi": ["error", "never"]
     }
