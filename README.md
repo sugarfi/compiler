@@ -10,9 +10,9 @@ Glaze is an innovative and powerful UI programming language that compiles to CSS
 
 ## Basic Usage
 
-Initiate a project:
+Create a project:
 
-`glaze init .`
+`glaze init`
 
 Install a Glaze package:
 
@@ -31,6 +31,7 @@ There is much more to the Glaze CLI, check out the full API docs [here](https://
 - Event-driven UI updates
 - Observables and subscriptions
 - Lightweight preprocessing during runtime
+- Ability to redefine the entire CSS language itself
 - Linting and error reporting
 - `!important` is illegal
 
@@ -50,7 +51,7 @@ The following will make sure all images within the .example class always have a 
 
 	button
 		click:
-			images = $(& ~ img)
+			images = [& ~ img]
 			for img in images
 				img.data.padding *= 2
 ```

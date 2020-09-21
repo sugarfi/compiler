@@ -53,7 +53,7 @@ pub fn copy(mut cx: FunctionContext) -> JsResult<JsUndefined> {
 }
 
 /* Compiles source code */
-fn compile(mut cx: FunctionContext) -> JsResult<JsString> {
+fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let input = cx.argument::<JsString>(0)?.value();
 
     let file = File::open(&input).expect(&format!("Could not open file at {}", input));
@@ -62,7 +62,13 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsString> {
     let mut source = String::new();
     buf_reader.read_to_string(&mut source).expect("Could not read the file.");
 
-    Ok(cx.string(source))
+    let out = JsObject::new(&mut cx);
+    let css = cx.string(&source);
+    let js = cx.string(&source);
+    out.set(&mut cx, "css", css).unwrap();
+    out.set(&mut cx, "js", js).unwrap();
+
+    Ok(out)
 }
 
 register_module!(mut cx, {
