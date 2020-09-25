@@ -19,9 +19,10 @@ use cow_rc_str::CowRcStr;
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
+	Keyword(CowRcStr<'a>),
 	Number(f32),
 	String(CowRcStr<'a>),
-	Keyword(CowRcStr<'a>),
+	Dimension(f32, CowRcStr<'a>),
 }
 
 #[derive(Debug, Clone)]

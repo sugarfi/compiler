@@ -34,9 +34,6 @@ pub enum Token<'a> {
 	// https://drafts.csswg.org/css-syntax/#ident-token-diagram
 	Ident(CowRcStr<'a>),
 
-	// A valid CSS selector
-	Selector(CowRcStr<'a>),
-
 	// https://drafts.csswg.org/css-syntax/#function-token-diagram
 	// Excludes (
 	Function(CowRcStr<'a>),
@@ -45,9 +42,9 @@ pub enum Token<'a> {
 	// Excludes @
 	AtRule(CowRcStr<'a>),
 
-	// https://drafts.csswg.org/css-syntax/#hash-token-diagram
+	// #[0-9a-fA-F]{6}
 	// Excludes #
-	Hash(CowRcStr<'a>),
+	Hex(CowRcStr<'a>),
 
 	// https://drafts.csswg.org/css-syntax/#string-token-diagram
 	// Excludes quotes
@@ -61,10 +58,6 @@ pub enum Token<'a> {
 		value: f32,
 		unit: CowRcStr<'a>,
 	},
-
-	// https://drafts.csswg.org/css-syntax/#percentage-token-diagram
-	// Excludes %
-	Percentage(f32),
 
 	// !important rule
 	Important,
@@ -80,6 +73,12 @@ pub enum Token<'a> {
 
 	// )
 	CloseParen,
+
+	// @
+	At,
+
+	// #
+	Hash,
 }
 
 pub struct Lexer<'a> {
@@ -186,16 +185,16 @@ impl<'a> Lexer<'a> {
 				},
 				b'-' => match self.next_byte() {
 					None => panic!("Unexpected eof"),
-					Some(b) => match b {
-						b'-' => Some(Ident(self.ident("--"))),
-						c @ b'a'..=b'z' | c @ b'A'..=b'Z' | c @ b'_' => Some(Ident(self.ident(&format!("{}{}", "-", c as char)))),
-						c @ b'0'..=b'9' => Some(self.number(&format!("{}{}", "-", c as char))),
+					Some(b) => Some(match b {
+						b'-' => Ident(self.ident("--")),
+						c @ b'a'..=b'z' | c @ b'A'..=b'Z' | c @ b'_' => Ident(self.ident(&format!("{}{}", "-", c as char))),
+						c @ b'0'..=b'9' => self.number(&format!("{}{}", "-", c as char)),
 						_ => panic!("Unexpected token"),
-					},
+					}),
 				},
 				c @ b'a'..=b'z' | c @ b'A'..=b'Z' | c @ b'_' => {
 					let ident = self.ident(&format!("{}", c as char));
-			    	Some(
+					Some(
 						match self.next_byte() {
 							None => Ident(ident),
 							Some(b) => match b {
@@ -209,6 +208,48 @@ impl<'a> Lexer<'a> {
 					)
 				},
 				c @ b'0'..=b'9' => Some(self.number(&format!("{}", c as char))),
+				b'@' => {
+					self.advance(1);
+					Some(
+						match self.next_byte() {
+							None => At,
+							Some(b) => match b {
+								c @ b'a'..=b'z' | c @ b'A'..=b'Z' | c @ b'_' => AtRule(self.ident(&format!("{}{}", "-", c as char))),
+								_ => At,
+							}
+						}
+					)
+				},
+				b'#' => {
+					let mut valid = true;
+					let mut hex = "".to_owned();
+
+					self.advance(1);
+					for i in 0..6 {
+						match self.byte_at(i) {
+							None => {
+								valid = false;
+								break;
+							},
+							Some(b) => match b {
+								c @ b'0'..=b'9' | c @ b'a'..=b'f' | c @ b'A'..=b'F' => hex.push(c.into()),
+								_ => {
+									valid = false;
+									break;
+								},
+							},
+						}
+					}
+
+					Some(
+						if valid {
+							self.advance(6);
+							Hex(hex.into())
+						} else {
+							Hash
+						}
+					)
+				},
 				_ => panic!("Unrecognized token"),
 			},
 		}
@@ -221,16 +262,16 @@ impl<'a> Lexer<'a> {
 
 	#[inline]
 	pub fn next_byte(&self) -> Option<u8> {
-		if self.has_at_least(0) {
-            Some(self.input[self.position])
-        } else {
-            None
-        }
+		self.byte_at(0)
 	}
 
 	#[inline]
-	pub fn byte_at(&self, offset: usize) -> u8 {
-        self.input[self.position + offset]
+	pub fn byte_at(&self, offset: usize) -> Option<u8> {
+		if self.has_at_least(offset) {
+            Some(self.input[self.position + offset])
+        } else {
+            None
+        }
     }
 
 	#[inline]
@@ -287,6 +328,33 @@ impl<'a> Lexer<'a> {
     		self.advance(1);
     	}
 
-    	Number(number.parse::<f32>().unwrap())
+    	let n = number.parse::<f32>().unwrap();
+
+    	match self.next_byte() {
+			None => Number(n),
+			Some(b) => match b {
+				b'%' => {
+					self.advance(1);
+					Dimension { value: n, unit: "%".into() }
+				},
+				c @ b'a'..=b'z' => {
+					let mut unit = "".to_owned();
+					unit.push(c.into());
+					self.advance(1);
+					loop {
+						match self.next_byte() {
+							None => break,
+							Some(b) => match b {
+								c @ b'a'..=b'z' => unit.push(c.into()),
+								_ => break,
+							}
+						}
+						self.advance(1);
+					}
+					Dimension { value: n, unit: unit.into() }
+				}
+				_ => Number(n),
+			},
+		}
     }
 }

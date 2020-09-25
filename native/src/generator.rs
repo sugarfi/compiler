@@ -83,9 +83,10 @@ impl<'a> Generator {
 	#[inline]
 	fn gen_value(&self, value: &Value<'a>) -> String {
 		match value {
+			Value::Keyword(kw) => kw.to_string(),
 			Value::Number(n) => n.to_string(),
 			Value::String(s) => format!("\"{}\"", s),
-			Value::Keyword(kw) => kw.to_string(),
+			Value::Dimension(v, u) => format!("{}{}", v, u),
 		}
 	}
 }

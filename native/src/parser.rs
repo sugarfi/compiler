@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
 		for _ in 0..indent {
 			s.push('\t');
 		}
-		if self.lexer.starts_with(s.as_bytes()) && self.lexer.byte_at(indent as usize) != b'\t' {
+		if self.lexer.starts_with(s.as_bytes()) && self.lexer.byte_at(indent as usize) != Some(b'\t') {
 			self.lexer.advance(indent as usize);
 			true
 		} else {
@@ -162,9 +162,10 @@ impl<'a> Parser<'a> {
 		let value = match self.lexer.next() {
 			None => panic!("Expected value"),
 			Some(token) => match token {
+				Token::Ident(i) => Value::Keyword(i),
 				Token::Number(n) => Value::Number(n),
 				Token::String(s) => Value::String(s),
-				Token::Ident(i) => Value::Keyword(i),
+				Token::Dimension{ value, unit } => Value::Dimension(value, unit),
 				_ => panic!("Not a value"),
 			}
 		};
