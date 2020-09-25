@@ -1,0 +1,15 @@
+// Comment should be removed
+
+/* But not
+this comment.
+Can't remove me! */
+
+p,
+span
+	color: gray
+	a
+		color: blue
+	background: orange
+
+::placeholder
+	background: green

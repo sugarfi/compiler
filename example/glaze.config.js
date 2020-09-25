@@ -1,6 +1,6 @@
 module.exports = {
     purge: ["**/*.html"],
-    outDir: "dist",
+    outDir: "./dist",
     postcss: [
     	require("autoprefixer"),
     ],

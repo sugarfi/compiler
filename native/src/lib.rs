@@ -1,70 +1,49 @@
+/*
+ * Copyright (C) 2020 GiraffeKey
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+mod lexer;
+mod nodes;
+mod parser;
+mod generator;
+
+use parser::Parser;
+use generator::Generator;
 use neon::prelude::*;
 use std::{
-    fs::{self, File},
+    fs::File,
     io::{prelude::*, BufReader},
-    path::{Path, PathBuf},
 };
 
-/* Recursively copies an entire directory */
-pub fn copy(mut cx: FunctionContext) -> JsResult<JsUndefined> {
-    let from_str = cx.argument::<JsString>(0)?.value();
-    let to_str = cx.argument::<JsString>(1)?.value();
-    let from = Path::new(&from_str);
-    let to = Path::new(&to_str);
-
-    let mut stack = Vec::new();
-    stack.push(PathBuf::from(&from));
-
-    let output_root = PathBuf::from(&to);
-    let input_root = PathBuf::from(&from).components().count();
-
-    while let Some(working_path) = stack.pop() {
-        // Generate a relative path
-        let src: PathBuf = working_path.components().skip(input_root).collect();
-
-        // Create a destination if missing
-        let dest = if src.components().count() == 0 {
-            output_root.clone()
-        } else {
-            output_root.join(&src)
-        };
-        if fs::metadata(&dest).is_err() {
-            fs::create_dir_all(&dest).unwrap();
-        }
-
-        for entry in fs::read_dir(working_path).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_dir() {
-                stack.push(path);
-            } else {
-                match path.file_name() {
-                    Some(filename) => {
-                        let dest_path = dest.join(filename);
-                        fs::copy(&path, &dest_path).unwrap();
-                    }
-                    None => panic!("failed: {:?}", path),
-                }
-            }
-        }
-    }
-
-    Ok(cx.undefined())
-}
-
-/* Compiles source code */
 fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let input = cx.argument::<JsString>(0)?.value();
 
-    let file = File::open(&input).expect(&format!("Could not open file at {}", input));
+    let file = File::open(&input).unwrap_or_else(|_| panic!("Could not open file at {}", input));
 
     let mut buf_reader = BufReader::new(file);
     let mut source = String::new();
     buf_reader.read_to_string(&mut source).expect("Could not read the file.");
 
+    let mut parser = Parser::new(&source);
+    let mut generator = Generator::new();
+    let (css, js) = generator.generate(parser.parse());
+
     let out = JsObject::new(&mut cx);
-    let css = cx.string(&source);
-    let js = cx.string(&source);
+    let css = cx.string(css);
+    let js = cx.string(js);
     out.set(&mut cx, "css", css).unwrap();
     out.set(&mut cx, "js", js).unwrap();
 
@@ -72,7 +51,6 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
 }
 
 register_module!(mut cx, {
-    cx.export_function("copy", copy)?;
     cx.export_function("compile", compile)?;
     Ok(())
 });

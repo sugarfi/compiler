@@ -15,27 +15,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const fs = require("fs")
-const path = require("path")
-const { spawn } = require("child_process")
-const { ncp } = require("ncp")
+use cow_rc_str::CowRcStr;
 
-module.exports = function (dir) {
-    if (!dir) dir = "."
+#[derive(Debug, Clone)]
+pub enum Value<'a> {
+	Number(f32),
+	String(CowRcStr<'a>),
+	Keyword(CowRcStr<'a>),
+}
 
-    let command
-    if (fs.existsSync(path.resolve(process.cwd(), "yarn.lock"))) {
-    	command = ["yarn", ["add", "-D", "autoprefixer"]]
-    } else {
-    	command = ["npm", ["i", "-D", "autoprefixer"]]
-    }
-	
-    const child = spawn(...command)
-    child.stdout.pipe(process.stdin)
-    child.stderr.pipe(process.stdin)
+#[derive(Debug, Clone)]
+pub struct Property<'a> {
+	pub name: CowRcStr<'a>,
+	pub value: Value<'a>,
+}
 
-    const from = path.resolve(__dirname, "../template")
-    const to = path.resolve(process.cwd(), dir)
+#[derive(Debug, Clone)]
+pub struct Selector<'a> {
+	pub sels: Vec<CowRcStr<'a>>,
+	pub props: Vec<Property<'a>>,
+	pub nested: Vec<Selector<'a>>,
+}
 
-    ncp(from, to)
+#[derive(Debug)]
+pub enum Node<'a> {
+	Selector(Selector<'a>),
+	Comment(CowRcStr<'a>),
 }

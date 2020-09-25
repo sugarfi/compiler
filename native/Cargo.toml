@@ -16,3 +16,4 @@ neon-build = "0.4.0"
 
 [dependencies]
 neon = "0.4.0"
+cow-rc-str = "0.1.0"

@@ -24,16 +24,17 @@ Compile output to the current directory:
 
 There is much more to the Glaze CLI, check out the full API docs [here](https://glaze.dev/api/cli).
 
-## Features
+## Features (WIP)
 
-- Feature-rich CSS preprocessing
-- Easy package management and modularity
-- Event-driven UI updates
-- Observables and subscriptions
-- Lightweight preprocessing during runtime
-- Ability to redefine the entire CSS language itself
-- Linting and error reporting
-- `!important` is illegal
+- [ ] Feature-rich CSS preprocessing
+- [ ] Easy package management and modularity
+- [ ] Event-driven UI updates
+- [ ] Observables and subscriptions
+- [ ] Lightweight preprocessing during runtime
+- [ ] Ability to redefine the entire CSS language itself
+- [ ] Linting and error reporting
+- [ ] `!important` is illegal
+- [ ] Incredibly fast compilation
 
 ## Example
 
