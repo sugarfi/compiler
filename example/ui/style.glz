@@ -1,12 +1,9 @@
-// Comment should be removed
-
-/* But not
-this comment.
-Can't remove me! */
+col(c)
+	color: {c}
 
 p,
 span
-	color: gray
+	col(#222)
 	a
 		color: blue
 	background: orange

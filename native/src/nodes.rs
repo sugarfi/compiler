@@ -22,7 +22,15 @@ pub enum Value<'a> {
 	Keyword(CowRcStr<'a>),
 	Number(f32),
 	String(CowRcStr<'a>),
+	Hex(CowRcStr<'a>),
 	Dimension(f32, CowRcStr<'a>),
+	Interop(Expr<'a>),
+}
+
+#[derive(Debug, Clone)]
+pub enum Expr<'a> {
+	Variable(CowRcStr<'a>),
+	Value(Box<Value<'a>>),
 }
 
 #[derive(Debug, Clone)]
@@ -32,14 +40,35 @@ pub struct Property<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub struct MixinCall<'a> {
+	pub name: CowRcStr<'a>,
+	pub args: Vec<Value<'a>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Selector<'a> {
 	pub sels: Vec<CowRcStr<'a>>,
 	pub props: Vec<Property<'a>>,
+	pub calls: Vec<MixinCall<'a>>,
 	pub nested: Vec<Selector<'a>>,
 }
 
 #[derive(Debug)]
+pub struct Mixin<'a> {
+	pub name: CowRcStr<'a>,
+	pub params: Vec<CowRcStr<'a>>,
+	pub props: Vec<Property<'a>>,
+}
+
+#[derive(Debug)]
+pub struct Variable<'a> {
+	pub name: CowRcStr<'a>,
+	pub expr: Expr<'a>,
+}
+
+#[derive(Debug)]
 pub enum Node<'a> {
-	Selector(Selector<'a>),
 	Comment(CowRcStr<'a>),
+	Selector(Selector<'a>),
+	Mixin(Mixin<'a>),
 }

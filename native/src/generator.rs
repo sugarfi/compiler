@@ -18,17 +18,21 @@
 use crate::nodes::*;
 use cow_rc_str::CowRcStr;
 
-pub struct Generator {
+pub struct Generator<'a> {
 	css: String,
 	js: String,
+	mixins: Vec<&'a Mixin<'a>>,
+	vars: Vec<Vec<Variable<'a>>>,
 }
 
-impl<'a> Generator {
+impl<'a> Generator<'a> {
 	#[inline]
-	pub fn new() -> Generator {
+	pub fn new() -> Generator<'a> {
 		Generator {
 			css: "".into(),
 			js: "".into(),
+			mixins: Vec::new(),
+			vars: Vec::new(),
 		}
 	}
 
@@ -41,10 +45,39 @@ impl<'a> Generator {
 	}
 
 	#[inline]
-	fn generate_node(&mut self, node: &Node<'a>) {
+	fn generate_node(&mut self, node: &'a Node<'a>) {
 		match node {
+			Node::Comment(comment) => self.css += &format!("/*{}*/\n\n", comment),
 			Node::Selector(selector) => self.gen_selector(selector),
-			Node::Comment(comment) => self.gen_comment(comment),
+			Node::Mixin(mixin) => self.mixins.push(mixin),
+		}
+	}
+
+	#[inline]
+	fn find_mixin(&self, name: &CowRcStr<'a>) -> Option<&'a Mixin<'a>> {
+		match self.mixins.iter().find(|mixin| mixin.name == name) {
+			None => None,
+			Some(mixin) => Some(*mixin),
+		}
+	}
+
+	#[inline]
+	fn get_var(&self, name: &CowRcStr<'a>) -> Value<'a> {
+		match self.vars.iter().find(
+			|scope| scope.iter().find(
+				|var| var.name == name
+			).is_some()
+		) {
+			None => panic!("Variable {} not defined", name),
+			Some(scope) => self.get_expr(&scope.iter().find(|var| var.name == name).unwrap().expr),
+		}
+	}
+
+	#[inline]
+	fn get_expr(&self, expr: &Expr<'a>) -> Value<'a> {
+		match expr {
+			Expr::Variable(var) => self.get_var(var),
+			Expr::Value(val) => *val.clone(),
 		}
 	}
 
@@ -56,7 +89,33 @@ impl<'a> Generator {
 			|prop| format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value))
 		).collect::<String>();
 
-		self.css += &format!("{} {{\n{}}}\n\n", sels, props);
+		let calls = selector.calls.iter().map(
+			|call| match self.find_mixin(&call.name) {
+				None => panic!("Could not find mixin: {}", call.name),
+				Some(mixin) => {
+					self.vars.push(mixin.params
+						.iter()
+						.enumerate()
+						.map(
+							|(i, param)| Variable {
+								name: param.clone(),
+								expr: Expr::Value(Box::new(call.args.get(i).expect("Not enough arguments").clone())),
+							}
+						).collect::<Vec<Variable<'a>>>()
+					);
+
+					let props = mixin.props.iter().map(
+						|prop| format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value))
+					).collect::<String>();
+
+					self.vars.pop();
+
+					props
+				},
+			}
+		).collect::<String>();
+
+		self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
 
 		for child in &selector.nested {
 			let mut child_sels = Vec::new();
@@ -70,14 +129,10 @@ impl<'a> Generator {
 			self.gen_selector(&Selector {
 				sels: child_sels,
 				props: child.props.clone(),
+				calls: child.calls.clone(),
 				nested: child.nested.clone(),
 			});
 		}
-	}
-
-	#[inline]
-	fn gen_comment(&mut self, comment: &CowRcStr<'a>) {
-		self.css += &format!("/*{}*/\n\n", comment);
 	}
 
 	#[inline]
@@ -86,7 +141,9 @@ impl<'a> Generator {
 			Value::Keyword(kw) => kw.to_string(),
 			Value::Number(n) => n.to_string(),
 			Value::String(s) => format!("\"{}\"", s),
+			Value::Hex(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
+			Value::Interop(expr) => self.gen_value(&self.get_expr(expr)),
 		}
 	}
 }

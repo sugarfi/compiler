@@ -59,9 +59,6 @@ pub enum Token<'a> {
 		unit: CowRcStr<'a>,
 	},
 
-	// !important rule
-	Important,
-
 	// Operator
 	Operator(CowRcStr<'a>),
 
@@ -79,6 +76,15 @@ pub enum Token<'a> {
 
 	// #
 	Hash,
+
+	// !
+	Bang,
+
+	// {
+	OpenBracket,
+
+	// }
+	CloseBracket,
 }
 
 pub struct Lexer<'a> {
@@ -221,36 +227,46 @@ impl<'a> Lexer<'a> {
 					)
 				},
 				b'#' => {
-					let mut valid = true;
 					let mut hex = "".to_owned();
 
-					self.advance(1);
-					for i in 0..6 {
-						match self.byte_at(i) {
-							None => {
-								valid = false;
-								break;
-							},
+					loop {
+						self.advance(1);
+						match self.next_byte() {
+							None => break,
 							Some(b) => match b {
 								c @ b'0'..=b'9' | c @ b'a'..=b'f' | c @ b'A'..=b'F' => hex.push(c.into()),
-								_ => {
-									valid = false;
-									break;
-								},
+								_ => break,
 							},
 						}
 					}
 
 					Some(
-						if valid {
-							self.advance(6);
+						if hex.len() > 0 {
 							Hex(hex.into())
 						} else {
 							Hash
 						}
 					)
 				},
-				_ => panic!("Unrecognized token"),
+				b'!' => {
+					self.advance(1);
+					Some(
+						if self.starts_with(b"important") {
+							panic!("!important is illegal");
+						} else {
+							Bang
+						}
+					)
+				},
+				b'{' => {
+					self.advance(1);
+					Some(OpenBracket)
+				},
+				b'}' => {
+					self.advance(1);
+					Some(CloseBracket)
+				},
+				c => panic!("Unrecognized token: {}", c as char),
 			},
 		}
 	}
@@ -258,6 +274,16 @@ impl<'a> Lexer<'a> {
 	#[inline]
 	pub fn advance(&mut self, n: usize) {
 		self.position += n;
+	}
+
+	#[inline]
+	pub fn set_position(&mut self, pos: usize) {
+		self.position = pos;
+	}
+
+	#[inline]
+	pub fn position(&mut self) -> usize {
+		self.position
 	}
 
 	#[inline]

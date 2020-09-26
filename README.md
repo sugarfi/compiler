@@ -33,8 +33,9 @@ There is much more to the Glaze CLI, check out the full API docs [here](https://
 - [ ] Lightweight preprocessing during runtime
 - [ ] Ability to redefine the entire CSS language itself
 - [ ] Linting and error reporting
-- [ ] `!important` is illegal
-- [ ] Incredibly fast compilation
+- [x] Utility-first workflow encouraged
+- [x] `!important` is illegal
+- [x] Lightning fast compilation
 
 ## Example
 
@@ -46,13 +47,13 @@ The following will make sure all images within the .example class always have a 
 		data:
 			padding: 5
 
-		padding: {data.padding}px
-		width: {data.padding} * 20px
-		height: {width}
+		padding: {$.data.padding}px
+		width: {$.data.padding} * 20px
+		height: {$.width}
 
 	button
 		click:
-			images = [& ~ img]
+			images = |& ~ img|
 			for img in images
 				img.data.padding *= 2
 ```
