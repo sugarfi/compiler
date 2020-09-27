@@ -15,18 +15,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-mod lexer;
-mod nodes;
-mod parser;
-mod generator;
+#[macro_use]
+extern crate pest_derive;
 
-use parser::Parser;
-use generator::Generator;
-use neon::prelude::*;
+// mod nodes;
+// mod parser;
+// mod generator;
+
+// use generator::Generator;
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
 };
+use neon::prelude::*;
+use pest::Parser;
+
+#[derive(Parser)]
+#[grammar = "syntax.pest"]
+pub struct Tokenizer;
 
 fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let input = cx.argument::<JsString>(0)?.value();
@@ -37,9 +43,14 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let mut source = String::new();
     buf_reader.read_to_string(&mut source).expect("Could not read the file.");
 
-    let mut parser = Parser::new(&source);
-    let mut generator = Generator::new();
-    let (css, js) = generator.generate(parser.parse());
+    let tokens = Tokenizer::parse(Rule::file, &source);
+    println!("{:#?}", tokens);
+
+    // let mut parser = Parser::new(&source);
+    // let mut generator = Generator::new();
+    // let (css, js) = generator.generate(parser.parse());
+    let css = "";
+    let js = "";
 
     let out = JsObject::new(&mut cx);
     let css = cx.string(css);

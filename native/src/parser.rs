@@ -52,6 +52,8 @@ impl<'a> Parser<'a> {
 				Token::MultilineComment(comment) => Some(Node::Comment(comment)),
 				Token::Ident(selector) => Some(self.selector(selector, 0)),
 				Token::Colon => Some(self.selector(":".into(), 0)),
+				Token::Hash => Some(self.selector("#".into(), 0)),
+				Token::Period => Some(self.selector(".".into(), 0)),
 				Token::Function(func) => Some(self.mixin(func)),
 				Token::Newline |
 				Token::Indent => self.next(),

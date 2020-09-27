@@ -1,0 +1,36 @@
+escape = _{ "\\" ~ (!(NEWLINE | ASCII_HEX_DIGIT) ~ ANY | ASCII_HEX_DIGIT{1,6}) }
+single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY) }
+comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
+
+ident = { (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "_" | escape)* }
+multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+function = { ident ~ "(" }
+atrule = { "@" ~ ident }
+hash = { "#" ~ ASCII_HEX_DIGIT{1,6} }
+number = { 
+	(("+" | "-")? ~
+	(ASCII_DIGIT+ ~ "."? ~ ASCII_DIGIT+ | "." ~ ASCII_DIGIT+)) ~
+	(^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+string = {
+	("\"" ~ ("\\\"" | "\\" ~ NEWLINE | !("\"" | NEWLINE) ~ ANY)* ~ "\"")
+	| ("'" ~ ("\\'" | "\\" ~ NEWLINE | !("'" | NEWLINE) ~ ANY)* ~ "'")
+}
+dimension = { number ~ (ident | "%") }
+interpolation = { "{" ~ WHITE_SPACE* ~ ident ~ WHITE_SPACE* ~ "}" }
+value = _{ ident | hash | number | string | dimension | interpolation }
+
+indent = { "\t" | "    " | "  " }
+sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? }
+property = { indent+ ~ ident ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE }
+mixin_call = { indent+ ~ function ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE }
+subsel = { indent+ ~ ("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~ NEWLINE }
+
+selector = { sel ~ (comma ~ sel)* ~ NEWLINE ~ (NEWLINE | property | mixin_call | subsel)* }
+mixin = { function ~ WHITE_SPACE* ~ ident ~ (comma ~ ident)* ~ WHITE_SPACE* ~ ")" ~ NEWLINE ~ property*  }
+
+file = {
+    SOI ~
+    (single_line_comment | multi_line_comment | selector | mixin | NEWLINE)* ~
+    EOI
+}
