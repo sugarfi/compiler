@@ -47,9 +47,10 @@ impl<'a> Generator<'a> {
 	#[inline]
 	fn generate_node(&mut self, node: &'a Node<'a>) {
 		match node {
-			Node::Comment(comment) => self.css += &format!("/*{}*/\n\n", comment),
+			Node::Comment(comment) => self.css += &format!("{}\n\n", comment),
 			Node::Selector(selector) => self.gen_selector(selector),
 			Node::Mixin(mixin) => self.mixins.push(mixin),
+			Node::EOI => (),
 		}
 	}
 
@@ -141,7 +142,7 @@ impl<'a> Generator<'a> {
 			Value::Keyword(kw) => kw.to_string(),
 			Value::Number(n) => n.to_string(),
 			Value::String(s) => format!("\"{}\"", s),
-			Value::Hex(h) => format!("#{}", h),
+			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
 			Value::Interop(expr) => self.gen_value(&self.get_expr(expr)),
 		}

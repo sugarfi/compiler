@@ -20,9 +20,9 @@ use cow_rc_str::CowRcStr;
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
 	Keyword(CowRcStr<'a>),
+	Hash(CowRcStr<'a>),
 	Number(f32),
 	String(CowRcStr<'a>),
-	Hex(CowRcStr<'a>),
 	Dimension(f32, CowRcStr<'a>),
 	Interop(Expr<'a>),
 }
@@ -71,4 +71,5 @@ pub enum Node<'a> {
 	Comment(CowRcStr<'a>),
 	Selector(Selector<'a>),
 	Mixin(Mixin<'a>),
+	EOI,
 }

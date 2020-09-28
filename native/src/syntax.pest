@@ -1,36 +1,54 @@
 escape = _{ "\\" ~ (!(NEWLINE | ASCII_HEX_DIGIT) ~ ANY | ASCII_HEX_DIGIT{1,6}) }
 single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY) }
 comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
+ident = _{ (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "-"{1,2} | "_" | escape)* }
 
-ident = { (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "_" | escape)* }
+keyword = { ident }
 multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
-function = { ident ~ "(" }
-atrule = { "@" ~ ident }
-hash = { "#" ~ ASCII_HEX_DIGIT{1,6} }
+function = { ident }
+function_w = _{ function ~ "(" }
+atrule = { ident }
+atrule_w = { "@" ~ atrule }
+hash = { ASCII_HEX_DIGIT{1,6} }
+hash_w = _{ "#" ~ hash }
 number = { 
-	(("+" | "-")? ~
-	(ASCII_DIGIT+ ~ "."? ~ ASCII_DIGIT+ | "." ~ ASCII_DIGIT+)) ~
+	(
+		("+" | "-")? ~
+		(ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? | "." ~ ASCII_DIGIT+)
+	) ~
 	(^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
 }
-string = {
-	("\"" ~ ("\\\"" | "\\" ~ NEWLINE | !("\"" | NEWLINE) ~ ANY)* ~ "\"")
-	| ("'" ~ ("\\'" | "\\" ~ NEWLINE | !("'" | NEWLINE) ~ ANY)* ~ "'")
+single_string = { ("\\'" | "\\" ~ NEWLINE | !("'" | NEWLINE) ~ ANY)* }
+double_string = { ("\\\"" | "\\" ~ NEWLINE | !("\"" | NEWLINE) ~ ANY)* }
+string_w = _{
+	("\"" ~ double_string ~ "\"")
+	| ("'" ~ single_string ~ "'")
 }
 dimension = { number ~ (ident | "%") }
-interpolation = { "{" ~ WHITE_SPACE* ~ ident ~ WHITE_SPACE* ~ "}" }
-value = _{ ident | hash | number | string | dimension | interpolation }
+interpolation = { "{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" }
 
-indent = { "\t" | "    " | "  " }
-sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? }
-property = { indent+ ~ ident ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE }
-mixin_call = { indent+ ~ function ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE }
-subsel = { indent+ ~ ("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~ NEWLINE }
+value = _{ keyword | hash_w | number | string_w | dimension | interpolation }
+expr = _{ keyword | value }
+
+indent = _{ "\t" | "    " | "  " | " " }
+sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? ~ ("[" ~ ANY* ~ "]")? }
+property = { indent ~ keyword ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE }
+mixin_call = { indent ~ function_w ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE }
+subsel = {
+	PUSH(indent) ~
+	("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~
+	NEWLINE ~
+	(NEWLINE | PEEK_ALL ~ (property | mixin_call | subsel))* ~
+	DROP
+}
 
 selector = { sel ~ (comma ~ sel)* ~ NEWLINE ~ (NEWLINE | property | mixin_call | subsel)* }
-mixin = { function ~ WHITE_SPACE* ~ ident ~ (comma ~ ident)* ~ WHITE_SPACE* ~ ")" ~ NEWLINE ~ property*  }
+mixin = { function_w ~ WHITE_SPACE* ~ keyword ~ (comma ~ keyword)* ~ WHITE_SPACE* ~ ")" ~ NEWLINE ~ property*  }
 
-file = {
+node = _{ single_line_comment | multi_line_comment | selector | mixin }
+file = _{
     SOI ~
-    (single_line_comment | multi_line_comment | selector | mixin | NEWLINE)* ~
+    NEWLINE* ~
+    (node ~ NEWLINE*)* ~
     EOI
 }

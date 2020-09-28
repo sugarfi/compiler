@@ -1,11 +1,19 @@
-col(c)
+/* multi
+line */
+
+col-weight(c, w)
 	color: {c}
+	font-weight: {w}
 
 p,
 span
-	col(#222)
+	col-weight(#222, normal)
 	a
 		color: blue
+		b
+			col-weight(green, bold)
+	i
+		font-weight: 500
 	background: orange
 
 ::placeholder
