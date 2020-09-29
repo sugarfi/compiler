@@ -15,4 +15,85 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+use crate::tokenize;
+use crate::parse;
+use crate::Generator;
 
+fn generate(source: &str) -> (String, String) {
+    let tokens = tokenize(source);
+    let ast = parse(tokens);
+
+    let mut generator = Generator::new();
+    let (css, js) = generator.generate(&ast);
+
+    (css.to_owned(), js.to_owned())
+}
+
+#[test]
+fn test_nesting() {
+	assert_eq!(
+		generate(
+".class
+	span
+		color: lightgray
+	p
+		color: gray
+		b
+			font-weight: 500
+	div
+		background-color: blue
+"
+		),
+		(
+".class span {
+	color: lightgray;
+}
+
+.class p {
+	color: gray;
+}
+
+.class p b {
+	font-weight: 500;
+}
+
+.class div {
+	background-color: blue;
+}
+
+".to_owned(),
+"".to_owned(),
+		),
+	);
+}
+
+#[test]
+fn test_mixins() {
+	assert_eq!(
+		generate(
+"color-weight(c, w)
+	color: {c}
+	font-weight: {w}
+
+.class
+	color-weight(blue, 600)
+	p
+		color-weight: #222 normal
+"
+		),
+		(
+".class {
+	color: blue;
+	font-weight: 600;
+}
+
+.class p {
+	color: #222;
+	font-weight: normal;
+}
+
+".to_owned(),
+"".to_owned(),
+		),
+	);
+}

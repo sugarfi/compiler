@@ -26,14 +26,16 @@ string_w = _{
 }
 dimension = { number ~ (ident | "%") }
 interpolation = { "{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" }
+tuple = { val ~ (" " ~ val)+ }
 
-value = _{ keyword | hash_w | number | string_w | dimension | interpolation }
-expr = _{ keyword | value }
+val = _{ keyword | hash_w | number | string_w | dimension | interpolation }
+value = _{ tuple | val }
+expr = _{ keyword | val }
 
 indent = _{ "\t" | "    " | "  " | " " }
 sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? ~ ("[" ~ ANY* ~ "]")? }
-property = { indent ~ keyword ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE }
-mixin_call = { indent ~ function_w ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE }
+property = { indent ~ keyword ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE? }
+mixin_call = { indent ~ function_w ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE? }
 subsel = {
 	PUSH(indent) ~
 	("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~

@@ -41,6 +41,7 @@ impl<'a> Generator<'a> {
 		for node in nodes {
 			self.generate_node(node);
 		}
+
 		(&self.css, &self.js)
 	}
 
@@ -83,40 +84,76 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
+	fn get_mixin_props(&mut self, name: &CowRcStr<'a>, args: &Vec<Value<'a>>) -> Option<String> {
+		println!("{:?}", args);
+		match self.find_mixin(name) {
+			None => None,
+			Some(mixin) => {
+				self.vars.push(mixin.params
+					.iter()
+					.enumerate()
+					.map(
+						|(i, param)| Variable {
+							name: param.clone(),
+							expr: Expr::Value(Box::new(args.get(i).expect("Not enough arguments").clone())),
+						}
+					).collect::<Vec<Variable<'a>>>()
+				);
+
+				let props = mixin.props.iter().map(
+					|prop| {
+						let args = match &prop.value {
+							Value::Tuple(tup) => (*tup).to_vec(),
+							_ => vec![prop.value.clone()],
+						};
+
+						match self.get_mixin_props(
+							&prop.name, 
+							&args,
+						) {
+							None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
+							Some(props) => props,
+						}
+					}
+				).collect::<String>();
+
+				self.vars.pop();
+
+				Some(props)
+			},
+		}
+	}
+
+	#[inline]
 	fn gen_selector(&mut self, selector: &Selector<'a>) {
 		let sels = selector.sels.join(",\n");
 
 		let props = selector.props.iter().map(
-			|prop| format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value))
-		).collect::<String>();
+			|prop| {
+				let args = match &prop.value {
+					Value::Tuple(tup) => (*tup).to_vec(),
+					_ => vec![prop.value.clone()],
+				};
 
-		let calls = selector.calls.iter().map(
-			|call| match self.find_mixin(&call.name) {
-				None => panic!("Could not find mixin: {}", call.name),
-				Some(mixin) => {
-					self.vars.push(mixin.params
-						.iter()
-						.enumerate()
-						.map(
-							|(i, param)| Variable {
-								name: param.clone(),
-								expr: Expr::Value(Box::new(call.args.get(i).expect("Not enough arguments").clone())),
-							}
-						).collect::<Vec<Variable<'a>>>()
-					);
-
-					let props = mixin.props.iter().map(
-						|prop| format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value))
-					).collect::<String>();
-
-					self.vars.pop();
-
-					props
-				},
+				match self.get_mixin_props(
+					&prop.name, 
+					&args,
+				) {
+					None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
+					Some(props) => props,
+				}
 			}
 		).collect::<String>();
 
-		self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
+		let calls = selector.calls.iter().map(
+			|call| self
+				.get_mixin_props(&call.name, &call.args)
+				.expect(&format!("Could not find mixin: {}", call.name))
+		).collect::<String>();
+
+		if props.len() > 0 || calls.len() > 0 {
+			self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
+		}
 
 		for child in &selector.nested {
 			let mut child_sels = Vec::new();
@@ -145,6 +182,7 @@ impl<'a> Generator<'a> {
 			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
 			Value::Interop(expr) => self.gen_value(&self.get_expr(expr)),
+			Value::Tuple(tup) => (*tup).iter().map(|v| self.gen_value(v)).collect::<Vec<String>>().join(" "),
 		}
 	}
 }

@@ -34,6 +34,7 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value<'a> {
 			)
 		},
 		Rule::interpolation => Value::Interop(parse_expr(token.into_inner().next().unwrap())),
+		Rule::tuple => Value::Tuple(token.into_inner().map(|v| parse_value(v)).collect()),
 		_ => unreachable!(),
 	}
 }

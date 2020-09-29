@@ -23,6 +23,9 @@ mod nodes;
 mod parser;
 mod generator;
 
+#[cfg(test)]
+mod tests;
+
 use tokenizer::tokenize;
 use parser::parse;
 use generator::Generator;

@@ -1,20 +1,8 @@
-/* multi
-line */
-
-col-weight(c, w)
+color-weight(c, w)
 	color: {c}
 	font-weight: {w}
 
-p,
-span
-	col-weight(#222, normal)
-	a
-		color: blue
-		b
-			col-weight(green, bold)
-	i
-		font-weight: 500
-	background: orange
-
-::placeholder
-	background: green
+.class
+	color-weight(blue, 600)
+	p
+		color-weight: #222 normal

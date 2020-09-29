@@ -25,6 +25,7 @@ pub enum Value<'a> {
 	String(CowRcStr<'a>),
 	Dimension(f32, CowRcStr<'a>),
 	Interop(Expr<'a>),
+	Tuple(Vec<Value<'a>>),
 }
 
 #[derive(Debug, Clone)]
