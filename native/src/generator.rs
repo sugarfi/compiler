@@ -16,18 +16,17 @@
  */
 
 use crate::nodes::*;
-use cow_rc_str::CowRcStr;
 
-pub struct Generator<'a> {
+pub struct Generator {
 	css: String,
 	js: String,
-	mixins: Vec<&'a Mixin<'a>>,
-	vars: Vec<Vec<Variable<'a>>>,
+	mixins: Vec<Mixin>,
+	vars: Vec<Vec<Variable>>,
 }
 
-impl<'a> Generator<'a> {
+impl<'a> Generator {
 	#[inline]
-	pub fn new() -> Generator<'a> {
+	pub fn new() -> Generator {
 		Generator {
 			css: "".into(),
 			js: "".into(),
@@ -37,34 +36,34 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
-	pub fn generate(&mut self, nodes: &'a [Node<'a>]) -> (&str, &str) {
+	pub fn generate(&mut self, nodes: Vec<Node>) -> (&str, &str) {
 		for node in nodes {
-			self.generate_node(node);
+			self.generate_node(&node);
 		}
 
 		(&self.css, &self.js)
 	}
 
 	#[inline]
-	fn generate_node(&mut self, node: &'a Node<'a>) {
+	fn generate_node(&mut self, node: &Node) {
 		match node {
 			Node::Comment(comment) => self.css += &format!("{}\n\n", comment),
 			Node::Selector(selector) => self.gen_selector(selector),
-			Node::Mixin(mixin) => self.mixins.push(mixin),
+			Node::Mixin(mixin) => self.mixins.push((*mixin).clone()),
 			Node::EOI => (),
 		}
 	}
 
 	#[inline]
-	fn find_mixin(&self, name: &CowRcStr<'a>) -> Option<&'a Mixin<'a>> {
+	fn find_mixin(&self, name: &str) -> Option<Mixin> {
 		match self.mixins.iter().find(|mixin| mixin.name == name) {
 			None => None,
-			Some(mixin) => Some(*mixin),
+			Some(mixin) => Some(mixin.clone()),
 		}
 	}
 
 	#[inline]
-	fn get_var(&self, name: &CowRcStr<'a>) -> Value<'a> {
+	fn get_var(&self, name: &str) -> Value {
 		match self.vars.iter().find(
 			|scope| scope.iter().find(
 				|var| var.name == name
@@ -76,7 +75,7 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
-	fn get_expr(&self, expr: &Expr<'a>) -> Value<'a> {
+	fn get_expr(&self, expr: &Expr) -> Value {
 		match expr {
 			Expr::Variable(var) => self.get_var(var),
 			Expr::Value(val) => *val.clone(),
@@ -84,8 +83,7 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
-	fn get_mixin_props(&mut self, name: &CowRcStr<'a>, args: &Vec<Value<'a>>) -> Option<String> {
-		println!("{:?}", args);
+	fn get_mixin_props(&mut self, name: &str, args: &Vec<Value>) -> Option<String> {
 		match self.find_mixin(name) {
 			None => None,
 			Some(mixin) => {
@@ -94,10 +92,10 @@ impl<'a> Generator<'a> {
 					.enumerate()
 					.map(
 						|(i, param)| Variable {
-							name: param.clone(),
+							name: param.to_owned(),
 							expr: Expr::Value(Box::new(args.get(i).expect("Not enough arguments").clone())),
 						}
-					).collect::<Vec<Variable<'a>>>()
+					).collect::<Vec<Variable>>()
 				);
 
 				let props = mixin.props.iter().map(
@@ -125,7 +123,7 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
-	fn gen_selector(&mut self, selector: &Selector<'a>) {
+	fn gen_selector(&mut self, selector: &Selector) {
 		let sels = selector.sels.join(",\n");
 
 		let props = selector.props.iter().map(
@@ -155,7 +153,7 @@ impl<'a> Generator<'a> {
 			self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
 		}
 
-		for child in &selector.nested {
+		for child in selector.nested.iter() {
 			let mut child_sels = Vec::new();
 
 			for child_sel in &child.sels {
@@ -174,7 +172,7 @@ impl<'a> Generator<'a> {
 	}
 
 	#[inline]
-	fn gen_value(&self, value: &Value<'a>) -> String {
+	fn gen_value(&self, value: &Value) -> String {
 		match value {
 			Value::Keyword(kw) => kw.to_string(),
 			Value::Number(n) => n.to_string(),

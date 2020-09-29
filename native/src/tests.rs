@@ -15,18 +15,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use crate::tokenize;
-use crate::parse;
-use crate::Generator;
+use crate::tokenizer::tokenize;
+use crate::parser::parse;
+use crate::generator::Generator;
 
 fn generate(source: &str) -> (String, String) {
     let tokens = tokenize(source);
     let ast = parse(tokens);
 
     let mut generator = Generator::new();
-    let (css, js) = generator.generate(&ast);
+    let (css, js) = generator.generate(ast);
 
-    (css.to_owned(), js.to_owned())
+    (css.to_string(), js.to_string())
 }
 
 #[test]

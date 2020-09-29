@@ -1,5 +1,5 @@
 escape = _{ "\\" ~ (!(NEWLINE | ASCII_HEX_DIGIT) ~ ANY | ASCII_HEX_DIGIT{1,6}) }
-single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY) }
+single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
 comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
 ident = _{ (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "-"{1,2} | "_" | escape)* }
 
@@ -34,8 +34,20 @@ expr = _{ keyword | val }
 
 indent = _{ "\t" | "    " | "  " | " " }
 sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? ~ ("[" ~ ANY* ~ "]")? }
-property = { indent ~ keyword ~ WHITE_SPACE* ~ ":" ~ WHITE_SPACE* ~ value ~ ("\t" | " ")* ~ NEWLINE? }
-mixin_call = { indent ~ function_w ~ WHITE_SPACE* ~ value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ ("\t" | " ")* ~ NEWLINE? }
+property = { 
+	indent ~
+	keyword ~ WHITE_SPACE* ~
+	":" ~ WHITE_SPACE* ~ value ~
+	("\t" | " ")* ~
+	NEWLINE?
+}
+mixin_call = {
+	indent ~
+	function_w ~ WHITE_SPACE* ~
+	value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ 
+	("\t" | " ")* ~
+	NEWLINE?
+}
 subsel = {
 	PUSH(indent) ~
 	("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~

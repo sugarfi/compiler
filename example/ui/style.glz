@@ -6,3 +6,14 @@ color-weight(c, w)
 	color-weight(blue, 600)
 	p
 		color-weight: #222 normal
+		background: gray
+
+.class-2
+	span
+		color: lightgray
+	p
+		color: gray
+		b
+			color-weight: black 500
+	div
+		background-color: blue

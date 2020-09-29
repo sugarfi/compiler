@@ -18,24 +18,34 @@
 #[macro_use]
 extern crate pest_derive;
 
-mod tokenizer;
 mod nodes;
-mod parser;
-mod generator;
+pub mod tokenizer;
+pub mod parser;
+pub mod generator;
 
 #[cfg(test)]
 mod tests;
 
+#[cfg(not(feature = "bench"))]
 use tokenizer::tokenize;
+
+#[cfg(not(feature = "bench"))]
 use parser::parse;
+
+#[cfg(not(feature = "bench"))]
 use generator::Generator;
+
+#[cfg(not(feature = "bench"))]
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
 };
+
+#[cfg(not(feature = "bench"))]
 use neon::prelude::*;
 
-fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
+#[cfg(not(feature = "bench"))]
+pub fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let input = cx.argument::<JsString>(0)?.value();
 
     let file = File::open(&input).unwrap_or_else(|_| panic!("Could not open file at {}", input));
@@ -48,7 +58,7 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     let ast = parse(tokens);
 
     let mut generator = Generator::new();
-    let (css, js) = generator.generate(&ast);
+    let (css, js) = generator.generate(ast);
 
     let out = JsObject::new(&mut cx);
     let css = cx.string(css);
@@ -59,6 +69,7 @@ fn compile(mut cx: FunctionContext) -> JsResult<JsObject> {
     Ok(out)
 }
 
+#[cfg(not(feature = "bench"))]
 register_module!(mut cx, {
     cx.export_function("compile", compile)?;
     Ok(())

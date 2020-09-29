@@ -15,62 +15,60 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use cow_rc_str::CowRcStr;
-
 #[derive(Debug, Clone)]
-pub enum Value<'a> {
-	Keyword(CowRcStr<'a>),
-	Hash(CowRcStr<'a>),
+pub enum Value {
+	Keyword(String),
+	Hash(String),
 	Number(f32),
-	String(CowRcStr<'a>),
-	Dimension(f32, CowRcStr<'a>),
-	Interop(Expr<'a>),
-	Tuple(Vec<Value<'a>>),
+	String(String),
+	Dimension(f32, String),
+	Interop(Expr),
+	Tuple(Vec<Value>),
 }
 
 #[derive(Debug, Clone)]
-pub enum Expr<'a> {
-	Variable(CowRcStr<'a>),
-	Value(Box<Value<'a>>),
+pub enum Expr {
+	Variable(String),
+	Value(Box<Value>),
 }
 
 #[derive(Debug, Clone)]
-pub struct Property<'a> {
-	pub name: CowRcStr<'a>,
-	pub value: Value<'a>,
+pub struct Property {
+	pub name: String,
+	pub value: Value,
 }
 
 #[derive(Debug, Clone)]
-pub struct MixinCall<'a> {
-	pub name: CowRcStr<'a>,
-	pub args: Vec<Value<'a>>,
+pub struct MixinCall {
+	pub name: String,
+	pub args: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Selector<'a> {
-	pub sels: Vec<CowRcStr<'a>>,
-	pub props: Vec<Property<'a>>,
-	pub calls: Vec<MixinCall<'a>>,
-	pub nested: Vec<Selector<'a>>,
+pub struct Selector {
+	pub sels: Vec<String>,
+	pub props: Vec<Property>,
+	pub calls: Vec<MixinCall>,
+	pub nested: Vec<Selector>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Mixin {
+	pub name: String,
+	pub params: Vec<String>,
+	pub props: Vec<Property>,
 }
 
 #[derive(Debug)]
-pub struct Mixin<'a> {
-	pub name: CowRcStr<'a>,
-	pub params: Vec<CowRcStr<'a>>,
-	pub props: Vec<Property<'a>>,
+pub struct Variable {
+	pub name: String,
+	pub expr: Expr,
 }
 
-#[derive(Debug)]
-pub struct Variable<'a> {
-	pub name: CowRcStr<'a>,
-	pub expr: Expr<'a>,
-}
-
-#[derive(Debug)]
-pub enum Node<'a> {
-	Comment(CowRcStr<'a>),
-	Selector(Selector<'a>),
-	Mixin(Mixin<'a>),
+#[derive(Debug, Clone)]
+pub enum Node {
+	Comment(String),
+	Selector(Selector),
+	Mixin(Mixin),
 	EOI,
 }

@@ -19,7 +19,7 @@ use crate::tokenizer::Rule;
 use crate::nodes::*;
 use pest::iterators::{Pair, Pairs};
 
-fn parse_value<'a>(token: Pair<'a, Rule>) -> Value<'a> {
+fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 	match token.as_rule() {
 		Rule::keyword => Value::Keyword(token.as_str().into()),
 		Rule::hash => Value::Hash(token.as_str().into()),
@@ -39,46 +39,48 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value<'a> {
 	}
 }
 
-fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr<'a> {
+fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr {
 	match token.as_rule() {
 		Rule::keyword => Expr::Variable(token.as_str().into()),
 		_ => Expr::Value(Box::new(parse_value(token))),
 	}
 }
 
-fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector<'a> {
+fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 	let mut sels = Vec::new();
 	let mut props = Vec::new();
 	let mut calls = Vec::new();
 	let mut nested = Vec::new();
 
-	for pair in token.into_inner() {
-		match pair.as_rule() {
-			Rule::sel => sels.push(pair.as_str().into()),
-			Rule::property => {
-				/*
-			     * Property: <keyword> <value>
-				 */
-				let mut inner = pair.into_inner();
-				props.push(Property {
-					name: inner.next().unwrap().as_str().into(),
-					value: parse_value(inner.next().unwrap()),
-				});
-			},
-			Rule::mixin_call => {
-				/*
-			     * MixinCall: <function> <value>*
-				 */
-				let mut inner = pair.into_inner();
-				calls.push(MixinCall {
-					name: inner.next().unwrap().as_str().into(),
-					args: inner.map(|arg| parse_value(arg)).collect(),
-				})
-			},
-			Rule::subsel => nested.push(parse_selector(pair)),
-			_ => unreachable!(),
+	token.into_inner().for_each(
+		|pair| {
+			match pair.as_rule() {
+				Rule::sel => sels.push(pair.as_str().into()),
+				Rule::property => {
+					/*
+				     * Property: <keyword> <value>
+					 */
+					let mut inner = pair.into_inner();
+					props.push(Property {
+						name: inner.next().unwrap().as_str().into(),
+						value: parse_value(inner.next().unwrap()),
+					});
+				},
+				Rule::mixin_call => {
+					/*
+				     * MixinCall: <function> <value>*
+					 */
+					let mut inner = pair.into_inner();
+					calls.push(MixinCall {
+						name: inner.next().unwrap().as_str().into(),
+						args: inner.map(|arg| parse_value(arg)).collect(),
+					})
+				},
+				Rule::subsel => nested.push(parse_selector(pair)),
+				_ => unreachable!(),
+			}
 		}
-	}
+	);
 
 	Selector {
 		sels,
@@ -88,28 +90,27 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector<'a> {
 	}
 }
 
-fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin<'a> {
+fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
 	let mut inner = token.into_inner();
 	let name = inner.next().unwrap().as_str();
-	let mut params = Vec::new();
-	let mut props = Vec::new();
 
-	for pair in inner {
-		match pair.as_rule() {
-			Rule::keyword => params.push(pair.as_str().into()),
-			Rule::property => {
-				/*
-			     * Property: <keyword> <value>
-				 */
-				let mut inner = pair.into_inner();
-				props.push(Property {
-					name: inner.next().unwrap().as_str().into(),
-					value: parse_value(inner.next().unwrap()),
-				});
-			},
-			_ => unreachable!(),
-		}
-	}
+	let params = inner
+		.clone()
+		.take_while(|p| p.as_rule() == Rule::keyword)
+		.map(|p| p.as_str().into())
+		.collect::<Vec<String>>();
+		
+	let props = inner
+		.clone()
+		.skip_while(|p| p.as_rule() == Rule::keyword)
+		.map(|p| {
+			let mut inner = p.into_inner();
+			Property {
+				name: inner.next().unwrap().as_str().into(),
+				value: parse_value(inner.next().unwrap()),
+			}
+		})
+		.collect::<Vec<Property>>();
 
 	Mixin {
 		name: name.into(),
@@ -118,11 +119,9 @@ fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin<'a> {
 	}
 }
 
-pub fn parse<'a>(tokens: Pairs<'a, Rule>) -> Vec<Node<'a>> {
-	let mut nodes = Vec::new();
-
-	for token in tokens {
-		nodes.push(
+pub fn parse<'a>(tokens: Pairs<'a, Rule>) -> Vec<Node> {
+	tokens.map(
+		|token| {
 			match token.as_rule() {
 				Rule::multi_line_comment => Node::Comment(token.as_str().into()),
 				Rule::selector => Node::Selector(parse_selector(token)),
@@ -130,8 +129,6 @@ pub fn parse<'a>(tokens: Pairs<'a, Rule>) -> Vec<Node<'a>> {
 				Rule::EOI => Node::EOI,
 				_ => unreachable!(),
 			}
-		)
-	}
-
-	nodes
+		}
+	).collect()
 }

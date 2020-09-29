@@ -1,0 +1,20 @@
+.class
+	span
+		color: lightgray
+	p
+		color: gray
+		b
+			font-weight: 500
+	div
+		background-color: blue
+
+color-weight(c, w)
+	color: {c}
+	font-weight: {w}
+
+.class-2
+	color-weight(blue, 600)
+	p
+		color-weight: #222 normal
+		strong
+			color-weight: black 800

@@ -69,6 +69,14 @@ You can then register the above components like so:
 
 There is much more to Glaze, check out the full documentation [here](https://glaze.dev/docs).
 
+## Running the benchmarks
+
+Criterion, the library being used for benchmarking, will not compile with Neon enabled.
+
+A fix for this was disabling it via a bench feature.
+
+The benchmarks will only run if you include this feature like so: `cargo bench --features bench`
+
 ## License
 
 This repository is licensed under GPL 3.0. It should be noted that the GPL license only applies to the code in this repository. This means that you only need to GPL license your code if it is for some reason using source code from the CLI tool or compiler. Any Glaze code you write or compile does not have to be GPL licensed. Any modifications to the CLI tool or compiler, however, are expected to be contributed back to the open source community.
