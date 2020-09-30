@@ -15,6 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * A single CSS value
+ */
 #[derive(Debug, Clone)]
 pub enum Value {
 	Keyword(String),
@@ -26,24 +29,36 @@ pub enum Value {
 	Tuple(Vec<Value>),
 }
 
+/*
+ * A single glaze expression
+ */
 #[derive(Debug, Clone)]
 pub enum Expr {
 	Variable(String),
 	Value(Box<Value>),
 }
 
+/*
+ * A CSS property
+ */
 #[derive(Debug, Clone)]
 pub struct Property {
 	pub name: String,
 	pub value: Value,
 }
 
+/*
+ * A function call
+ */
 #[derive(Debug, Clone)]
 pub struct MixinCall {
 	pub name: String,
 	pub args: Vec<Value>,
 }
 
+/*
+ * A selector block
+ */
 #[derive(Debug, Clone)]
 pub struct Selector {
 	pub sels: Vec<String>,
@@ -52,6 +67,9 @@ pub struct Selector {
 	pub nested: Vec<Selector>,
 }
 
+/*
+ * A mixin definition
+ */
 #[derive(Debug, Clone)]
 pub struct Mixin {
 	pub name: String,
@@ -59,12 +77,9 @@ pub struct Mixin {
 	pub props: Vec<Property>,
 }
 
-#[derive(Debug)]
-pub struct Variable {
-	pub name: String,
-	pub expr: Expr,
-}
-
+/*
+ * A root node
+ */
 #[derive(Debug, Clone)]
 pub enum Node {
 	Comment(String),

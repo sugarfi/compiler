@@ -18,7 +18,11 @@
 use crate::tokenizer::Rule;
 use crate::nodes::*;
 use pest::iterators::{Pair, Pairs};
+use peeking_take_while::PeekableExt;
 
+/*
+ * Parses token into Value enum
+ */
 fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 	match token.as_rule() {
 		Rule::keyword => Value::Keyword(token.as_str().into()),
@@ -27,6 +31,9 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 		Rule::single_string |
 		Rule::double_string => Value::String(token.as_str().into()),
 		Rule::dimension => {
+			/*
+		     * Dimension: <number> <keyword>
+			 */
 			let mut inner = token.into_inner();
 			Value::Dimension(
 				inner.next().unwrap().as_str().parse().unwrap(),
@@ -39,6 +46,9 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 	}
 }
 
+/*
+ * Parses token into Expr enum
+ */
 fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr {
 	match token.as_rule() {
 		Rule::keyword => Expr::Variable(token.as_str().into()),
@@ -46,16 +56,28 @@ fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr {
 	}
 }
 
+/*
+ * Selector: <sel>+ <property|mixin_call|subsel>*
+ */
 fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
-	let mut sels = Vec::new();
-	let mut props = Vec::new();
-	let mut calls = Vec::new();
-	let mut nested = Vec::new();
+	let mut inner = token.into_inner().peekable();
 
-	token.into_inner().for_each(
+	// <sel>+
+	let sels = inner
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::sel)
+		.map(|p| p.as_str().to_owned())
+		.collect();
+
+	// <property|mixin_call|subsel>*
+
+	let mut props = Vec::<Property>::new();
+	let mut calls = Vec::<MixinCall>::new();
+	let mut nested = Vec::<Selector>::new();
+
+	inner.for_each(
 		|pair| {
 			match pair.as_rule() {
-				Rule::sel => sels.push(pair.as_str().into()),
 				Rule::property => {
 					/*
 				     * Property: <keyword> <value>
@@ -68,7 +90,7 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 				},
 				Rule::mixin_call => {
 					/*
-				     * MixinCall: <function> <value>*
+				     * Mixin-call: <function> <value>*
 					 */
 					let mut inner = pair.into_inner();
 					calls.push(MixinCall {
@@ -76,7 +98,12 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 						args: inner.map(|arg| parse_value(arg)).collect(),
 					})
 				},
-				Rule::subsel => nested.push(parse_selector(pair)),
+				Rule::subsel => {
+					/*
+					 * Sub-selector: <sel>+ <property|mixin_call|subsel>*
+					 */
+					nested.push(parse_selector(pair))
+				},
 				_ => unreachable!(),
 			}
 		}
@@ -90,19 +117,24 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 	}
 }
 
+/*
+ * Mixin: <function> <keyword>* <property>*
+ */
 fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
-	let mut inner = token.into_inner();
+	let mut inner = token.into_inner().peekable();
+
+	// <function>
 	let name = inner.next().unwrap().as_str();
 
+	// <keyword>*
 	let params = inner
-		.clone()
-		.take_while(|p| p.as_rule() == Rule::keyword)
-		.map(|p| p.as_str().into())
-		.collect::<Vec<String>>();
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::keyword)
+		.map(|p| p.as_str().to_owned())
+		.collect();
 		
+	// <property>*
 	let props = inner
-		.clone()
-		.skip_while(|p| p.as_rule() == Rule::keyword)
 		.map(|p| {
 			let mut inner = p.into_inner();
 			Property {
@@ -110,7 +142,7 @@ fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
 				value: parse_value(inner.next().unwrap()),
 			}
 		})
-		.collect::<Vec<Property>>();
+		.collect();
 
 	Mixin {
 		name: name.into(),
@@ -119,6 +151,9 @@ fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
 	}
 }
 
+/*
+ * Generates AST from parsed tokens
+ */
 pub fn parse<'a>(tokens: Pairs<'a, Rule>) -> Vec<Node> {
 	tokens.map(
 		|token| {

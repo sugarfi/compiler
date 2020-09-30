@@ -24,20 +24,22 @@ string_w = _{
 	("\"" ~ double_string ~ "\"")
 	| ("'" ~ single_string ~ "'")
 }
-dimension = { number ~ (ident | "%") }
+unit = { "%" | ASCII_ALPHA+ }
+dimension = { number ~ unit }
 interpolation = { "{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" }
 tuple = { val ~ (" " ~ val)+ }
 
-val = _{ keyword | hash_w | number | string_w | dimension | interpolation }
+val = _{ dimension | keyword | hash_w | number | string_w | interpolation }
 value = _{ tuple | val }
 expr = _{ keyword | val }
 
 indent = _{ "\t" | "    " | "  " | " " }
-sel = { ("." | "#" | ":"{1,2})? ~ ident ~ (":"{1,2} ~ ident)? ~ ("[" ~ ANY* ~ "]")? }
+sel_bit = _{ ("&" | "/" | "." | "#" | ":" | ident | ("[" ~ ANY* ~ "]"))+ }
+sel = { sel_bit ~ (("\t" | " ")* ~ (sel_bit | ">"))* }
 property = { 
 	indent ~
 	keyword ~ WHITE_SPACE* ~
-	":" ~ WHITE_SPACE* ~ value ~
+	": " ~ WHITE_SPACE* ~ value ~
 	("\t" | " ")* ~
 	NEWLINE?
 }
@@ -50,7 +52,7 @@ mixin_call = {
 }
 subsel = {
 	PUSH(indent) ~
-	("&"? ~ sel) ~ (comma ~ "&"? ~ sel)* ~ ("\t" | " ")* ~
+	sel ~ (comma ~ sel)* ~ ("\t" | " ")* ~
 	NEWLINE ~
 	(NEWLINE | PEEK_ALL ~ (property | mixin_call | subsel))* ~
 	DROP

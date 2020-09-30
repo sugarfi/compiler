@@ -16,5 +16,27 @@ color-weight(c, w)
 	color-weight(blue, 600)
 	p
 		color-weight: #222 normal
+		i
+			color: gray
+			& > a
+				padding: 3px
+				color-weight(lightblue, 500)
+			div
+				background: #123adf
+				a
+					border: 1px solid black
+					background: purple
 		strong
 			color-weight: black 800
+
+.class-3
+	font-weight: bold
+	color: #222
+	flex-grow: 2
+	border: 1px solid black
+	&:after
+		content: ""
+		background: blue
+	width: 50vw
+	height: 100%
+	padding: 5px 2px

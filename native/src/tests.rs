@@ -15,6 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// TODO: Make tests look a bit nicer by creating a function that
+	// - Removes all excess beginning tabs from each line so that strings can be indented
+	// - Adjusts beginning and ending newlines to expected values
+	// - Handles &str -> String conversions
+
 use crate::tokenizer::tokenize;
 use crate::parser::parse;
 use crate::generator::Generator;
@@ -29,11 +34,28 @@ fn generate(source: &str) -> (String, String) {
     (css.to_string(), js.to_string())
 }
 
+/* Test template
+
+#[test]
+fn test_() {
+	assert_eq!(
+		generate(
+""
+		),
+		(
+"".to_owned(),
+"".to_owned(),
+		),
+	);
+}
+ */
+
 #[test]
 fn test_nesting() {
 	assert_eq!(
 		generate(
-".class
+"
+.class
 	span
 		color: lightgray
 	p
@@ -71,7 +93,8 @@ fn test_nesting() {
 fn test_mixins() {
 	assert_eq!(
 		generate(
-"color-weight(c, w)
+"
+color-weight(c, w)
 	color: {c}
 	font-weight: {w}
 
@@ -79,6 +102,8 @@ fn test_mixins() {
 	color-weight(blue, 600)
 	p
 		color-weight: #222 normal
+		&:hover
+			color: blue
 "
 		),
 		(
@@ -90,6 +115,50 @@ fn test_mixins() {
 .class p {
 	color: #222;
 	font-weight: normal;
+}
+
+.class p:hover {
+	color: blue;
+}
+
+".to_owned(),
+"".to_owned(),
+		),
+	);
+}
+
+#[test]
+fn test_value() {
+	assert_eq!(
+		generate(
+"
+.class
+	font-weight: bold
+	color: #222
+	flex-grow: 2
+	border: 1px solid black
+	&:after
+		content: \"\"
+		background: blue
+	width: 50vw
+	height: 100%
+	padding: 5px 2px
+"
+		),
+		(
+".class {
+	font-weight: bold;
+	color: #222;
+	flex-grow: 2;
+	border: 1px solid black;
+	width: 50vw;
+	height: 100%;
+	padding: 5px 2px;
+}
+
+.class:after {
+	content: \"\";
+	background: blue;
 }
 
 ".to_owned(),

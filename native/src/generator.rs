@@ -17,15 +17,23 @@
 
 use crate::nodes::*;
 
+/*
+ * Variable stored in memory
+ */
+#[derive(Debug)]
+pub struct Variable {
+	pub name: String,
+	pub value: Value,
+}
+
 pub struct Generator {
 	css: String,
 	js: String,
 	mixins: Vec<Mixin>,
-	vars: Vec<Vec<Variable>>,
+	vars: Vec<Vec<Variable>>, // Pushes to and pops from a scoped stack
 }
 
 impl<'a> Generator {
-	#[inline]
 	pub fn new() -> Generator {
 		Generator {
 			css: "".into(),
@@ -35,16 +43,22 @@ impl<'a> Generator {
 		}
 	}
 
-	#[inline]
+	/*
+	 * Generates CSS & JS from AST
+	 */
 	pub fn generate(&mut self, nodes: Vec<Node>) -> (&str, &str) {
-		for node in nodes {
-			self.generate_node(&node);
-		}
+		nodes.iter().for_each(
+			|node| {
+				self.generate_node(&node);
+			}
+		);
 
 		(&self.css, &self.js)
 	}
 
-	#[inline]
+	/*
+	 * Generates CSS & JS from a single node
+	 */
 	fn generate_node(&mut self, node: &Node) {
 		match node {
 			Node::Comment(comment) => self.css += &format!("{}\n\n", comment),
@@ -54,7 +68,9 @@ impl<'a> Generator {
 		}
 	}
 
-	#[inline]
+	/*
+	 * Finds a mixin in memory
+	 */
 	fn find_mixin(&self, name: &str) -> Option<Mixin> {
 		match self.mixins.iter().find(|mixin| mixin.name == name) {
 			None => None,
@@ -62,59 +78,61 @@ impl<'a> Generator {
 		}
 	}
 
-	#[inline]
-	fn get_var(&self, name: &str) -> Value {
-		match self.vars.iter().find(
-			|scope| scope.iter().find(
-				|var| var.name == name
-			).is_some()
-		) {
-			None => panic!("Variable {} not defined", name),
-			Some(scope) => self.get_expr(&scope.iter().find(|var| var.name == name).unwrap().expr),
+	/*
+	 * Finds a variable in memory
+	 */
+	fn find_var(&self, name: &str) -> Value {
+		let var = self.vars.iter().rev().find_map(
+			|scope| scope.iter().find(|v| v.name == name)
+		);
+
+		match var {
+			None => panic!("Could not find variable: {}", name),
+			Some(v) => v.value.clone(),
 		}
 	}
 
-	#[inline]
-	fn get_expr(&self, expr: &Expr) -> Value {
+	/*
+	 * Evaluates an expression into a value
+	 */
+	fn eval_expr(&self, expr: &Expr) -> Value {
 		match expr {
-			Expr::Variable(var) => self.get_var(var),
+			Expr::Variable(var) => self.find_var(var),
 			Expr::Value(val) => *val.clone(),
 		}
 	}
 
-	#[inline]
+	/*
+	 * Generates properties from a mixin call
+	 */
 	fn get_mixin_props(&mut self, name: &str, args: &Vec<Value>) -> Option<String> {
 		match self.find_mixin(name) {
 			None => None,
 			Some(mixin) => {
-				self.vars.push(mixin.params
-					.iter()
-					.enumerate()
-					.map(
-						|(i, param)| Variable {
-							name: param.to_owned(),
-							expr: Expr::Value(Box::new(args.get(i).expect("Not enough arguments").clone())),
-						}
-					).collect::<Vec<Variable>>()
+				// Adds parameters to scope
+				self.vars.push(
+					mixin.params
+						.iter()
+						.enumerate()
+						.map(
+							|(i, param)| Variable {
+								name: param.to_owned(),
+								value: args
+										.get(i)
+										.expect("Not enough arguments")
+										.clone(),
+							}
+						)
+						.collect()
 				);
 
-				let props = mixin.props.iter().map(
-					|prop| {
-						let args = match &prop.value {
-							Value::Tuple(tup) => (*tup).to_vec(),
-							_ => vec![prop.value.clone()],
-						};
+				// Generates CSS from properties
+				let props = mixin.props
+								.iter()
+								.map(|prop| self.gen_prop(prop))
+								.collect::<String>();
 
-						match self.get_mixin_props(
-							&prop.name, 
-							&args,
-						) {
-							None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
-							Some(props) => props,
-						}
-					}
-				).collect::<String>();
-
+				// Argument values no longer needed
 				self.vars.pop();
 
 				Some(props)
@@ -122,56 +140,78 @@ impl<'a> Generator {
 		}
 	}
 
-	#[inline]
+	/*
+	 * Generates CSS from a property node
+	 */
+	fn gen_prop(&mut self, prop: &Property) -> String {
+		// Maps value to args vector
+		let args = match &prop.value {
+			Value::Tuple(tup) => (*tup).to_vec(),
+			_ => vec![prop.value.clone()],
+		};
+
+		// Checks if property name is an existing mixin
+		match self.get_mixin_props(
+			&prop.name, 
+			&args,
+		) {
+			None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
+			Some(props) => props,
+		}
+	}
+
+	/*
+	 * Generates CSS from a selector node
+	 */
 	fn gen_selector(&mut self, selector: &Selector) {
 		let sels = selector.sels.join(",\n");
 
-		let props = selector.props.iter().map(
-			|prop| {
-				let args = match &prop.value {
-					Value::Tuple(tup) => (*tup).to_vec(),
-					_ => vec![prop.value.clone()],
-				};
+		// Generates CSS from properties
+		let props = selector.props
+						.iter()
+						.map(|prop| self.gen_prop(prop))
+						.collect::<String>();
 
-				match self.get_mixin_props(
-					&prop.name, 
-					&args,
-				) {
-					None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
-					Some(props) => props,
-				}
-			}
-		).collect::<String>();
-
+		// Generates CSS from mixin calls
 		let calls = selector.calls.iter().map(
 			|call| self
 				.get_mixin_props(&call.name, &call.args)
 				.expect(&format!("Could not find mixin: {}", call.name))
 		).collect::<String>();
 
+		// Generates CSS if the selector has properties
 		if props.len() > 0 || calls.len() > 0 {
 			self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
 		}
 
-		for child in selector.nested.iter() {
-			let mut child_sels = Vec::new();
+		// Generates CSS for all nested selectors
+		selector.nested.iter().for_each(
+			|child| {
+				let child_sels = child.sels.iter().flat_map(
+					|child_sel| selector.sels.iter().map(
+						move |sel| {
+							if child_sel.contains("&") {
+								child_sel.replace("&", sel)
+							} else {
+								format!("{} {}", sel, child_sel)
+							}
+						}
+					)
+				).collect();
 
-			for child_sel in &child.sels {
-				for sel in &selector.sels {
-					child_sels.push(format!("{} {}", sel, child_sel).into());
-				}
+				self.gen_selector(&Selector {
+					sels: child_sels,
+					props: child.props.clone(),
+					calls: child.calls.clone(),
+					nested: child.nested.clone(),
+				});
 			}
-
-			self.gen_selector(&Selector {
-				sels: child_sels,
-				props: child.props.clone(),
-				calls: child.calls.clone(),
-				nested: child.nested.clone(),
-			});
-		}
+		); 
 	}
 
-	#[inline]
+	/*
+	 * Generates CSS from a value node
+	 */
 	fn gen_value(&self, value: &Value) -> String {
 		match value {
 			Value::Keyword(kw) => kw.to_string(),
@@ -179,8 +219,12 @@ impl<'a> Generator {
 			Value::String(s) => format!("\"{}\"", s),
 			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
-			Value::Interop(expr) => self.gen_value(&self.get_expr(expr)),
-			Value::Tuple(tup) => (*tup).iter().map(|v| self.gen_value(v)).collect::<Vec<String>>().join(" "),
+			Value::Interop(expr) => self.gen_value(&self.eval_expr(expr)),
+			Value::Tuple(tup) => (*tup)
+									.iter()
+									.map(|v| self.gen_value(v))
+									.collect::<Vec<String>>()
+									.join(" "),
 		}
 	}
 }

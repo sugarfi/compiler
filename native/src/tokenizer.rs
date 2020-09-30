@@ -4,6 +4,12 @@ use pest::{Parser, iterators::Pairs};
 #[grammar = "syntax.pest"]
 struct Tokenizer;
 
+/*
+ * Parses a source pest file
+ */
 pub fn tokenize(source: &str) -> Pairs<Rule> {
-	Tokenizer::parse(Rule::file, source).unwrap()
+	match Tokenizer::parse(Rule::file, source) {
+		Ok(tokens) => tokens,
+		Err(err) => panic!("{:?}", err),
+	}
 }
