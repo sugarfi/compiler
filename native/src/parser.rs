@@ -23,7 +23,7 @@ use peeking_take_while::PeekableExt;
 /*
  * Parses token into Value enum
  */
-fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
+fn parse_value(token: Pair<Rule>) -> Value {
 	match token.as_rule() {
 		Rule::keyword => Value::Keyword(token.as_str().into()),
 		Rule::hash => Value::Hash(token.as_str().into()),
@@ -41,7 +41,7 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 			)
 		},
 		Rule::interpolation => Value::Interop(parse_expr(token.into_inner().next().unwrap())),
-		Rule::tuple => Value::Tuple(token.into_inner().map(|v| parse_value(v)).collect()),
+		Rule::tuple => Value::Tuple(token.into_inner().map(parse_value).collect()),
 		_ => unreachable!(),
 	}
 }
@@ -49,7 +49,7 @@ fn parse_value<'a>(token: Pair<'a, Rule>) -> Value {
 /*
  * Parses token into Expr enum
  */
-fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr {
+fn parse_expr(token: Pair<Rule>) -> Expr {
 	match token.as_rule() {
 		Rule::keyword => Expr::Variable(token.as_str().into()),
 		_ => Expr::Value(Box::new(parse_value(token))),
@@ -59,7 +59,7 @@ fn parse_expr<'a>(token: Pair<'a, Rule>) -> Expr {
 /*
  * Selector: <sel>+ <property|mixin_call|subsel>*
  */
-fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
+fn parse_selector(token: Pair<Rule>) -> Selector {
 	let mut inner = token.into_inner().peekable();
 
 	// <sel>+
@@ -95,7 +95,7 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 					let mut inner = pair.into_inner();
 					calls.push(MixinCall {
 						name: inner.next().unwrap().as_str().into(),
-						args: inner.map(|arg| parse_value(arg)).collect(),
+						args: inner.map(parse_value).collect(),
 					})
 				},
 				Rule::subsel => {
@@ -120,7 +120,7 @@ fn parse_selector<'a>(token: Pair<'a, Rule>) -> Selector {
 /*
  * Mixin: <function> <keyword>* <property>*
  */
-fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
+fn parse_mixin(token: Pair<Rule>) -> Mixin {
 	let mut inner = token.into_inner().peekable();
 
 	// <function>
@@ -154,7 +154,7 @@ fn parse_mixin<'a>(token: Pair<'a, Rule>) -> Mixin {
 /*
  * Generates AST from parsed tokens
  */
-pub fn parse<'a>(tokens: Pairs<'a, Rule>) -> Vec<Node> {
+pub fn parse(tokens: Pairs<Rule>) -> Vec<Node> {
 	tokens.map(
 		|token| {
 			match token.as_rule() {

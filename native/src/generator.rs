@@ -34,8 +34,8 @@ pub struct Generator {
 }
 
 impl<'a> Generator {
-	pub fn new() -> Generator {
-		Generator {
+	pub fn new() -> Self {
+		Self {
 			css: "".into(),
 			js: "".into(),
 			mixins: Vec::new(),
@@ -105,7 +105,7 @@ impl<'a> Generator {
 	/*
 	 * Generates properties from a mixin call
 	 */
-	fn get_mixin_props(&mut self, name: &str, args: &Vec<Value>) -> Option<String> {
+	fn get_mixin_props(&mut self, name: &str, args: &[Value]) -> Option<String> {
 		match self.find_mixin(name) {
 			None => None,
 			Some(mixin) => {
@@ -176,11 +176,11 @@ impl<'a> Generator {
 		let calls = selector.calls.iter().map(
 			|call| self
 				.get_mixin_props(&call.name, &call.args)
-				.expect(&format!("Could not find mixin: {}", call.name))
+				.unwrap_or_else(|| panic!("Could not find mixin: {}", call.name))
 		).collect::<String>();
 
 		// Generates CSS if the selector has properties
-		if props.len() > 0 || calls.len() > 0 {
+		if !props.is_empty() || !calls.is_empty() {
 			self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
 		}
 
@@ -190,7 +190,7 @@ impl<'a> Generator {
 				let child_sels = child.sels.iter().flat_map(
 					|child_sel| selector.sels.iter().map(
 						move |sel| {
-							if child_sel.contains("&") {
+							if child_sel.contains('&') {
 								child_sel.replace("&", sel)
 							} else {
 								format!("{} {}", sel, child_sel)

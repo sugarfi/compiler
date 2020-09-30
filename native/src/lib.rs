@@ -15,6 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#![allow(clippy::new_without_default)]
+
 #[macro_use]
 extern crate pest_derive;
 
