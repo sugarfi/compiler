@@ -30,7 +30,7 @@ pub struct Generator {
 	css: String,
 	js: String,
 	mixins: Vec<Mixin>,
-	vars: Vec<Vec<Variable>>, // Pushes to and pops from a scoped stack
+	stack: Vec<Vec<Variable>>, // Pushes to and pops from a scoped stack
 }
 
 impl<'a> Generator {
@@ -39,7 +39,7 @@ impl<'a> Generator {
 			css: "".into(),
 			js: "".into(),
 			mixins: Vec::new(),
-			vars: Vec::new(),
+			stack: Vec::new(),
 		}
 	}
 
@@ -82,7 +82,7 @@ impl<'a> Generator {
 	 * Finds a variable in memory
 	 */
 	fn find_var(&self, name: &str) -> Value {
-		let var = self.vars.iter().rev().find_map(
+		let var = self.stack.iter().rev().find_map(
 			|scope| scope.iter().find(|v| v.name == name)
 		);
 
@@ -97,8 +97,26 @@ impl<'a> Generator {
 	 */
 	fn eval_expr(&self, expr: &Expr) -> Value {
 		match expr {
-			Expr::Variable(var) => self.find_var(var),
 			Expr::Value(val) => *val.clone(),
+		}
+	}
+
+	/*
+	 * Evaluates a line of code
+	 */
+	fn eval_line(&mut self, line: &Line) {
+		match line {
+			Line::VarDef(name, expr) => {
+				let value = self.eval_expr(expr);
+
+				self.stack
+					.last_mut()
+					.unwrap()
+					.push(Variable {
+						name: name.to_string(),
+						value,
+					});
+			}
 		}
 	}
 
@@ -110,7 +128,7 @@ impl<'a> Generator {
 			None => None,
 			Some(mixin) => {
 				// Adds parameters to scope
-				self.vars.push(
+				self.stack.push(
 					mixin.params
 						.iter()
 						.enumerate()
@@ -126,6 +144,9 @@ impl<'a> Generator {
 						.collect()
 				);
 
+				// Executes lines of code
+				mixin.lines.iter().for_each(|l| self.eval_line(l));
+
 				// Generates CSS from properties
 				let props = mixin.props
 								.iter()
@@ -133,7 +154,7 @@ impl<'a> Generator {
 								.collect::<String>();
 
 				// Argument values no longer needed
-				self.vars.pop();
+				self.stack.pop();
 
 				Some(props)
 			},
@@ -164,6 +185,11 @@ impl<'a> Generator {
 	 * Generates CSS from a selector node
 	 */
 	fn gen_selector(&mut self, selector: &Selector) {
+		// Pushes a new stack and executes lines of code
+		self.stack.push(Vec::new());
+		selector.lines.iter().for_each(|l| self.eval_line(l));
+
+		// Generates CSS from comma-separated selectors
 		let sels = selector.sels.join(",\n");
 
 		// Generates CSS from properties
@@ -172,16 +198,9 @@ impl<'a> Generator {
 						.map(|prop| self.gen_prop(prop))
 						.collect::<String>();
 
-		// Generates CSS from mixin calls
-		let calls = selector.calls.iter().map(
-			|call| self
-				.get_mixin_props(&call.name, &call.args)
-				.unwrap_or_else(|| panic!("Could not find mixin: {}", call.name))
-		).collect::<String>();
-
 		// Generates CSS if the selector has properties
-		if !props.is_empty() || !calls.is_empty() {
-			self.css += &format!("{} {{\n{}{}}}\n\n", sels, props, calls);
+		if !props.is_empty() {
+			self.css += &format!("{} {{\n{}}}\n\n", sels, props);
 		}
 
 		// Generates CSS for all nested selectors
@@ -201,12 +220,15 @@ impl<'a> Generator {
 
 				self.gen_selector(&Selector {
 					sels: child_sels,
+					lines: child.lines.clone(),
 					props: child.props.clone(),
-					calls: child.calls.clone(),
 					nested: child.nested.clone(),
 				});
 			}
-		); 
+		);
+
+		// Pops from stack
+		self.stack.pop();
 	}
 
 	/*
@@ -219,6 +241,7 @@ impl<'a> Generator {
 			Value::String(s) => format!("\"{}\"", s),
 			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
+			Value::Variable(var) => self.gen_value(&self.find_var(var)),
 			Value::Interop(expr) => self.gen_value(&self.eval_expr(expr)),
 			Value::Tuple(tup) => (*tup)
 									.iter()

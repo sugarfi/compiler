@@ -25,14 +25,14 @@ use peeking_take_while::PeekableExt;
  */
 fn parse_value(token: Pair<Rule>) -> Value {
 	match token.as_rule() {
-		Rule::keyword => Value::Keyword(token.as_str().into()),
+		Rule::symbol => Value::Keyword(token.as_str().into()),
 		Rule::hash => Value::Hash(token.as_str().into()),
 		Rule::number => Value::Number(token.as_str().parse().unwrap()),
 		Rule::single_string |
 		Rule::double_string => Value::String(token.as_str().into()),
 		Rule::dimension => {
 			/*
-		     * Dimension: <number> <keyword>
+		     * Dimension: <number> <symbol>
 			 */
 			let mut inner = token.into_inner();
 			Value::Dimension(
@@ -40,6 +40,7 @@ fn parse_value(token: Pair<Rule>) -> Value {
 				inner.next().unwrap().as_str().into(),
 			)
 		},
+		Rule::var => Value::Variable(token.as_str().into()),
 		Rule::interpolation => Value::Interop(parse_expr(token.into_inner().next().unwrap())),
 		Rule::tuple => Value::Tuple(token.into_inner().map(parse_value).collect()),
 		_ => unreachable!(),
@@ -51,13 +52,32 @@ fn parse_value(token: Pair<Rule>) -> Value {
  */
 fn parse_expr(token: Pair<Rule>) -> Expr {
 	match token.as_rule() {
-		Rule::keyword => Expr::Variable(token.as_str().into()),
 		_ => Expr::Value(Box::new(parse_value(token))),
 	}
 }
 
 /*
- * Selector: <sel>+ <property|mixin_call|subsel>*
+ * Parses token into Line enum
+ */
+fn parse_line(token: Pair<Rule>) -> Line {
+	let line = token.into_inner().next().unwrap();
+	match line.as_rule() {
+		Rule::var_def => {
+			/*
+			 * Var-def: <symbol> <expr>
+			 */
+			let mut inner = line.into_inner();
+			Line::VarDef(
+				inner.next().unwrap().as_str().into(),
+				parse_expr(inner.next().unwrap()),
+			)
+		},
+		_ => unreachable!(),
+	}
+}
+
+/*
+ * Selector: <sel>+ <line>* <property|mixin_call|subsel>+
  */
 fn parse_selector(token: Pair<Rule>) -> Selector {
 	let mut inner = token.into_inner().peekable();
@@ -69,10 +89,17 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 		.map(|p| p.as_str().to_owned())
 		.collect();
 
-	// <property|mixin_call|subsel>*
+	// <line>*
+
+	let lines = inner
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::line)
+		.map(parse_line)
+		.collect();
+
+	// <property|mixin_call|subsel>+
 
 	let mut props = Vec::<Property>::new();
-	let mut calls = Vec::<MixinCall>::new();
 	let mut nested = Vec::<Selector>::new();
 
 	inner.for_each(
@@ -80,7 +107,7 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 			match pair.as_rule() {
 				Rule::property => {
 					/*
-				     * Property: <keyword> <value>
+				     * Property: <symbol> <value>
 					 */
 					let mut inner = pair.into_inner();
 					props.push(Property {
@@ -93,16 +120,19 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 				     * Mixin-call: <function> <value>*
 					 */
 					let mut inner = pair.into_inner();
-					calls.push(MixinCall {
+					props.push(Property {
 						name: inner.next().unwrap().as_str().into(),
-						args: inner.map(parse_value).collect(),
-					})
+						value: match inner.clone().count() {
+							1 => parse_value(inner.next().unwrap()),
+							_ => Value::Tuple(inner.map(parse_value).collect()),
+						},
+					});
 				},
 				Rule::subsel => {
 					/*
 					 * Sub-selector: <sel>+ <property|mixin_call|subsel>*
 					 */
-					nested.push(parse_selector(pair))
+					nested.push(parse_selector(pair));
 				},
 				_ => unreachable!(),
 			}
@@ -111,14 +141,14 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 
 	Selector {
 		sels,
+		lines,
 		props,
-		calls,
 		nested,
 	}
 }
 
 /*
- * Mixin: <function> <keyword>* <property>*
+ * Mixin: <function> <symbol>* <line>* <property>+
  */
 fn parse_mixin(token: Pair<Rule>) -> Mixin {
 	let mut inner = token.into_inner().peekable();
@@ -126,27 +156,57 @@ fn parse_mixin(token: Pair<Rule>) -> Mixin {
 	// <function>
 	let name = inner.next().unwrap().as_str();
 
-	// <keyword>*
+	// <symbol>*
 	let params = inner
 		.by_ref()
-		.peeking_take_while(|p| p.as_rule() == Rule::keyword)
+		.peeking_take_while(|p| p.as_rule() == Rule::symbol)
 		.map(|p| p.as_str().to_owned())
 		.collect();
-		
-	// <property>*
-	let props = inner
-		.map(|p| {
-			let mut inner = p.into_inner();
-			Property {
-				name: inner.next().unwrap().as_str().into(),
-				value: parse_value(inner.next().unwrap()),
-			}
-		})
+
+	// <line>*
+
+	let lines = inner
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::line)
+		.map(parse_line)
 		.collect();
+		
+	// <property|mixin_call>+
+	let props = inner.map(
+		|pair| {
+			match pair.as_rule() {
+				Rule::property => {
+					/*
+				     * Property: <symbol> <value>
+					 */
+					let mut inner = pair.into_inner();
+					Property {
+						name: inner.next().unwrap().as_str().into(),
+						value: parse_value(inner.next().unwrap()),
+					}
+				},
+				Rule::mixin_call => {
+					/*
+				     * Mixin-call: <function> <value>*
+					 */
+					let mut inner = pair.into_inner();
+					Property {
+						name: inner.next().unwrap().as_str().into(),
+						value: match inner.clone().count() {
+							1 => parse_value(inner.next().unwrap()),
+							_ => Value::Tuple(inner.map(parse_value).collect()),
+						},
+					}
+				},
+				_ => unreachable!(),
+			}
+		}
+	).collect();
 
 	Mixin {
 		name: name.into(),
 		params,
+		lines,
 		props,
 	}
 }

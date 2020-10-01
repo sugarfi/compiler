@@ -47,15 +47,15 @@ The following will make sure all images within the .example class always have a 
 		data:
 			padding: 5
 
-		padding: {$.data.padding}px
-		width: {$.data.padding} * 20px
-		height: {$.width}
+		padding: {self.data.padding}px
+		width: {self.data.padding} * 20px
+		height: {self.width}
 
 	button
 		click:
-			images = |& ~ img|
-			for img in images
-				img.data.padding *= 2
+			$images = |& ~ img|
+			for $img in $images
+				$img.data.padding *= 2
 ```
 
 You can then register the above components like so:

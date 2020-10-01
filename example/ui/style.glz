@@ -9,8 +9,11 @@
 		background-color: blue
 
 color-weight(c, w)
-	color: {c}
-	font-weight: {w}
+	$border-size = 1px
+
+	color: $c
+	font-weight: $w
+	border: $border-size solid black
 
 .class-2
 	color-weight(blue, 600)
@@ -30,6 +33,8 @@ color-weight(c, w)
 			color-weight: black 800
 
 .class-3
+	$width = 50vw
+
 	font-weight: bold
 	color: #222
 	flex-grow: 2
@@ -37,6 +42,6 @@ color-weight(c, w)
 	&:after
 		content: ""
 		background: blue
-	width: 50vw
+	width: $width
 	height: 100%
 	padding: 5px 2px

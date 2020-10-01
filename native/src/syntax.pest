@@ -1,9 +1,12 @@
+// Helper
 escape = _{ "\\" ~ (!(NEWLINE | ASCII_HEX_DIGIT) ~ ANY | ASCII_HEX_DIGIT{1,6}) }
 single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
 comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
 ident = _{ (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "-"{1,2} | "_" | escape)* }
+nl = _{ ("\t" | " ")* ~ NEWLINE }
 
-keyword = { ident }
+// Value
+symbol = { ident }
 multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 function = { ident }
 function_w = _{ function ~ "(" }
@@ -28,17 +31,25 @@ unit = { "%" | ASCII_ALPHA+ }
 dimension = { number ~ unit }
 interpolation = { "{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" }
 tuple = { val ~ (" " ~ val)+ }
+var = { ident }
+var_w = _{ "$" ~ var }
 
-val = _{ dimension | keyword | hash_w | number | string_w | interpolation }
+// Line
+var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
+
+// Enums
+val = _{ dimension | symbol | hash_w | number | string_w | var_w | interpolation }
 value = _{ tuple | val }
-expr = _{ keyword | val }
+expr = _{ value }
+line = { var_def }
 
+// Selectors
 indent = _{ "\t" | "    " | "  " | " " }
 sel_bit = _{ ("&" | "/" | "." | "#" | ":" | ident | ("[" ~ ANY* ~ "]"))+ }
 sel = { sel_bit ~ (("\t" | " ")* ~ (sel_bit | ">"))* }
 property = { 
 	indent ~
-	keyword ~ WHITE_SPACE* ~
+	symbol ~ WHITE_SPACE* ~
 	": " ~ WHITE_SPACE* ~ value ~
 	("\t" | " ")* ~
 	NEWLINE?
@@ -54,13 +65,27 @@ subsel = {
 	PUSH(indent) ~
 	sel ~ (comma ~ sel)* ~ ("\t" | " ")* ~
 	NEWLINE ~
-	(NEWLINE | PEEK_ALL ~ (property | mixin_call | subsel))* ~
+	(PEEK_ALL ~ indent ~ line ~ NEWLINE)* ~
+	(nl | PEEK_ALL ~ (property | mixin_call | subsel))+ ~
 	DROP
 }
 
-selector = { sel ~ (comma ~ sel)* ~ NEWLINE ~ (NEWLINE | property | mixin_call | subsel)* }
-mixin = { function_w ~ WHITE_SPACE* ~ keyword ~ (comma ~ keyword)* ~ WHITE_SPACE* ~ ")" ~ NEWLINE ~ property*  }
+// Nodes
+selector = {
+	sel ~ (comma ~ sel)* ~
+	NEWLINE ~
+	(nl | indent ~ line ~ NEWLINE)* ~
+	(nl | property | mixin_call | subsel)+
+}
+mixin = { 
+	function_w ~ WHITE_SPACE* ~
+	symbol ~ (comma ~ symbol)* ~ WHITE_SPACE* ~
+	")" ~ NEWLINE ~
+	(nl | indent ~ line ~ NEWLINE)* ~
+	(nl | property)+
+}
 
+// Root
 node = _{ single_line_comment | multi_line_comment | selector | mixin }
 file = _{
     SOI ~

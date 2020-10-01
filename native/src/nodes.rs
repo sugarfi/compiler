@@ -25,6 +25,7 @@ pub enum Value {
 	Number(f32),
 	String(String),
 	Dimension(f32, String),
+	Variable(String),
 	Interop(Expr),
 	Tuple(Vec<Value>),
 }
@@ -34,8 +35,15 @@ pub enum Value {
  */
 #[derive(Debug, Clone)]
 pub enum Expr {
-	Variable(String),
 	Value(Box<Value>),
+}
+
+/*
+ * A line of code
+ */
+#[derive(Debug, Clone)]
+pub enum Line {
+	VarDef(String, Expr),
 }
 
 /*
@@ -48,22 +56,13 @@ pub struct Property {
 }
 
 /*
- * A function call
- */
-#[derive(Debug, Clone)]
-pub struct MixinCall {
-	pub name: String,
-	pub args: Vec<Value>,
-}
-
-/*
  * A selector block
  */
 #[derive(Debug, Clone)]
 pub struct Selector {
 	pub sels: Vec<String>,
+	pub lines: Vec<Line>,
 	pub props: Vec<Property>,
-	pub calls: Vec<MixinCall>,
 	pub nested: Vec<Selector>,
 }
 
@@ -74,6 +73,7 @@ pub struct Selector {
 pub struct Mixin {
 	pub name: String,
 	pub params: Vec<String>,
+	pub lines: Vec<Line>,
 	pub props: Vec<Property>,
 }
 

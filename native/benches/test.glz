@@ -9,8 +9,8 @@
 		background-color: blue
 
 color-weight(c, w)
-	color: {c}
-	font-weight: {w}
+	color: $c
+	font-weight: $w
 
 .class-2
 	color-weight(blue, 600)

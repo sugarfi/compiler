@@ -15,11 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// TODO: Make tests look a bit nicer by creating a function that
-	// - Removes all excess beginning tabs from each line so that strings can be indented
-	// - Adjusts beginning and ending newlines to expected values
-	// - Handles &str -> String conversions
-
 use crate::tokenizer::tokenize;
 use crate::parser::parse;
 use crate::generator::Generator;
@@ -40,11 +35,15 @@ fn generate(source: &str) -> (String, String) {
 fn test_() {
 	assert_eq!(
 		generate(
-""
+"
+
+"
 		),
 		(
-"".to_owned(),
-"".to_owned(),
+"
+".to_owned(),
+"
+".to_owned(),
 		),
 	);
 }
@@ -95,8 +94,8 @@ fn test_mixins() {
 		generate(
 "
 color-weight(c, w)
-	color: {c}
-	font-weight: {w}
+	color: $c
+	font-weight: $w
 
 .class
 	color-weight(blue, 600)
@@ -159,6 +158,34 @@ fn test_value() {
 .class:after {
 	content: \"\";
 	background: blue;
+}
+
+".to_owned(),
+"".to_owned(),
+		),
+	);
+}
+
+#[test]
+fn test_variables() {
+	assert_eq!(
+		generate(
+"
+.class
+	$width = 50px
+	$height = 30px
+	$border-style = solid
+
+	width: $width
+	height: $height
+	border: 1px $border-style black
+"
+		),
+		(
+".class {
+	width: 50px;
+	height: 30px;
+	border: 1px solid black;
 }
 
 ".to_owned(),
