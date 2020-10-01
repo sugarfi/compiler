@@ -1,0 +1,9 @@
+.class
+	span
+		color: lightgray
+	p
+		color: gray
+		b
+			font-weight: 500
+	div
+		background-color: blue

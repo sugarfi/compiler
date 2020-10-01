@@ -1,0 +1,8 @@
+.class
+	$width = 50px
+	$height = 30
+	$border-style = solid
+
+	width: $width
+	height: {$height}px
+	border: 1px $border-style black

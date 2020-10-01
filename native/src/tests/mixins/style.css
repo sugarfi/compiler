@@ -1,0 +1,14 @@
+.class {
+	color: blue;
+	font-weight: 600;
+}
+
+.class p {
+	color: #222;
+	font-weight: normal;
+}
+
+.class p:hover {
+	color: blue;
+}
+

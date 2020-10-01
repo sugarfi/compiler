@@ -35,6 +35,8 @@ pub enum Value {
  */
 #[derive(Debug, Clone)]
 pub enum Expr {
+	Accessor(Box<Expr>, Vec<String>),
+	Object(Vec<Variable>),
 	Value(Box<Value>),
 }
 
@@ -75,6 +77,15 @@ pub struct Mixin {
 	pub params: Vec<String>,
 	pub lines: Vec<Line>,
 	pub props: Vec<Property>,
+}
+
+/*
+ * Variable stored in memory
+ */
+#[derive(Debug, Clone)]
+pub struct Variable {
+	pub name: String,
+	pub expr: Expr,
 }
 
 /*

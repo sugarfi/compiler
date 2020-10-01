@@ -47,9 +47,9 @@ The following will make sure all images within the .example class always have a 
 		data:
 			padding: 5
 
-		padding: {self.data.padding}px
-		width: {self.data.padding} * 20px
-		height: {self.width}
+		padding: {$.data.padding}px
+		width: {$.data.padding} * 20px
+		height: {$.width}
 
 	button
 		click:

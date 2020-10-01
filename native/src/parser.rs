@@ -66,6 +66,33 @@ fn parse_value(token: Pair<Rule>) -> Value {
  */
 fn parse_expr(token: Pair<Rule>) -> Expr {
 	match token.as_rule() {
+		Rule::accessor => {
+			/*
+			 * Accessor: <var> <symbol>+
+			 */
+			let mut inner = token.into_inner();
+			Expr::Accessor(
+				Box::new(parse_expr(inner.next().unwrap())),
+				inner
+					.map(|t| t.as_str().to_string())
+					.collect(),
+			)
+		},
+		Rule::object => {
+			/*
+			 * Object: (<symbol> <expr>)*
+			 */
+			Expr::Object(
+				token.into_inner()
+					.collect::<Vec<Pair<Rule>>>()
+					.chunks(2)
+					.map(|c| Variable {
+						name: c[0].as_str().to_string(),
+						expr: parse_expr(c[1].clone()),
+					})
+					.collect()
+			)
+		},
 		_ => Expr::Value(Box::new(parse_value(token))),
 	}
 }

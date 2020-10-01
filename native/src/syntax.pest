@@ -38,8 +38,19 @@ interpolation = {
 	)+
 }
 tuple = { val ~ (("\t" | " ")+ ~ val)+ }
-var = { ident }
+var = { ident? }
 var_w = _{ "$" ~ var }
+
+// Expressions
+accessor = { var_w ~ ("." ~ symbol)+ }
+object = {
+	"{" ~
+	(
+		WHITE_SPACE* ~ symbol ~ WHITE_SPACE* ~ ":" ~
+		WHITE_SPACE* ~ expr ~ NEWLINE?
+	)* ~
+	WHITE_SPACE* ~ "}"
+}
 
 // Line
 var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
@@ -47,7 +58,7 @@ var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
 // Enums
 val = _{ interpolation | dimension | symbol | hash_w | number | string_w | var_w }
 value = _{ tuple | val }
-expr = _{ value }
+expr = _{ accessor | object | value }
 line = { var_def }
 
 // Selectors

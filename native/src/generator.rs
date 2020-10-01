@@ -17,15 +17,6 @@
 
 use crate::nodes::*;
 
-/*
- * Variable stored in memory
- */
-#[derive(Debug)]
-pub struct Variable {
-	pub name: String,
-	pub value: Value,
-}
-
 pub struct Generator {
 	css: String,
 	js: String,
@@ -47,11 +38,7 @@ impl<'a> Generator {
 	 * Generates CSS & JS from AST
 	 */
 	pub fn generate(&mut self, nodes: Vec<Node>) -> (&str, &str) {
-		nodes.iter().for_each(
-			|node| {
-				self.generate_node(&node);
-			}
-		);
+		nodes.iter().for_each(|node| self.generate_node(node));
 
 		(&self.css, &self.js)
 	}
@@ -81,14 +68,27 @@ impl<'a> Generator {
 	/*
 	 * Finds a variable in memory
 	 */
-	fn find_var(&self, name: &str) -> Value {
+	fn find_var(&self, name: &str) -> Expr {
 		let var = self.stack.iter().rev().find_map(
 			|scope| scope.iter().find(|v| v.name == name)
 		);
 
 		match var {
 			None => panic!("Could not find variable: {}", name),
-			Some(v) => v.value.clone(),
+			Some(v) => v.expr.clone(),
+		}
+	}
+
+	/*
+	 * Finds a field of an object
+	 */
+	fn find_field(&self, props: &Vec<Variable>, fields: &Vec<String>, i: usize) -> Value {
+		match props.iter().find(|p| &p.name == fields.get(i).unwrap()) {
+			None => panic!("Could not find field {}", fields.get(i).unwrap()),
+			Some(var) => match &var.expr {
+				Expr::Object(props) => self.find_field(props, fields, i + 1),
+				_ => self.eval_expr(&var.expr),
+			},
 		}
 	}
 
@@ -97,24 +97,37 @@ impl<'a> Generator {
 	 */
 	fn eval_expr(&self, expr: &Expr) -> Value {
 		match expr {
+			Expr::Accessor(obj, fields) => {
+				let props = match &**obj {
+					Expr::Value(val) => match &**val {
+						Value::Variable(var) => match self.find_var(&var) {
+							Expr::Object(props) => props,
+							_ => panic!("{} is not an object", var),
+						},
+						_ => unreachable!(),
+					},
+					_ => unreachable!(),
+				};
+
+				self.find_field(&props, fields, 0)
+			},
 			Expr::Value(val) => *val.clone(),
+			_ => unreachable!(),
 		}
 	}
 
 	/*
-	 * Evaluates a line of code
+	 * Evaluates a line of codee
 	 */
 	fn eval_line(&mut self, line: &Line) {
 		match line {
 			Line::VarDef(name, expr) => {
-				let value = self.eval_expr(expr);
-
 				self.stack
 					.last_mut()
 					.unwrap()
 					.push(Variable {
 						name: name.to_string(),
-						value,
+						expr: expr.clone(),
 					});
 			}
 		}
@@ -135,10 +148,12 @@ impl<'a> Generator {
 						.map(
 							|(i, param)| Variable {
 								name: param.to_owned(),
-								value: args
+								expr: Expr::Value(Box::new(
+									args
 										.get(i)
 										.expect("Not enough arguments")
-										.clone(),
+										.clone()
+								)),
 							}
 						)
 						.collect()
@@ -241,15 +256,19 @@ impl<'a> Generator {
 			Value::String(s) => format!("\"{}\"", s),
 			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
-			Value::Variable(var) => self.gen_value(&self.find_var(var)),
-			Value::Interpolation(exprs) => exprs.iter()
-												.map(|e| self.gen_value(&self.eval_expr(e)))
-												.collect(),
-			Value::Tuple(tup) => (*tup)
-									.iter()
-									.map(|v| self.gen_value(v))
-									.collect::<Vec<String>>()
-									.join(" "),
+			Value::Variable(var) => self.gen_value(&self.eval_expr(&self.find_var(var))),
+			Value::Interpolation(exprs) => {
+				exprs.iter()
+					.map(|e| self.gen_value(&self.eval_expr(e)))
+					.collect()
+			},
+			Value::Tuple(tup) => {
+				(*tup)
+					.iter()
+					.map(|v| self.gen_value(v))
+					.collect::<Vec<String>>()
+					.join(" ")
+			},
 		}
 	}
 }

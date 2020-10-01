@@ -1,0 +1,10 @@
+color-weight(c, w)
+	color: $c
+	font-weight: $w
+
+.class
+	color-weight(blue, 600)
+	p
+		color-weight: #222 normal
+		&:hover
+			color: blue

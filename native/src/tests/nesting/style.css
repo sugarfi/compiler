@@ -1,0 +1,16 @@
+.class span {
+	color: lightgray;
+}
+
+.class p {
+	color: gray;
+}
+
+.class p b {
+	font-weight: 500;
+}
+
+.class div {
+	background-color: blue;
+}
+
