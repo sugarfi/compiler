@@ -242,7 +242,9 @@ impl<'a> Generator {
 			Value::Hash(h) => format!("#{}", h),
 			Value::Dimension(v, u) => format!("{}{}", v, u),
 			Value::Variable(var) => self.gen_value(&self.find_var(var)),
-			Value::Interop(expr) => self.gen_value(&self.eval_expr(expr)),
+			Value::Interpolation(exprs) => exprs.iter()
+												.map(|e| self.gen_value(&self.eval_expr(e)))
+												.collect(),
 			Value::Tuple(tup) => (*tup)
 									.iter()
 									.map(|v| self.gen_value(v))

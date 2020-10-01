@@ -9,11 +9,11 @@
 		background-color: blue
 
 color-weight(c, w)
-	$border-size = 1px
+	$border-size = 1
 
 	color: $c
 	font-weight: $w
-	border: $border-size solid black
+	border: {$border-size}px solid black
 
 .class-2
 	color-weight(blue, 600)

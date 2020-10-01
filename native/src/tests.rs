@@ -173,11 +173,11 @@ fn test_variables() {
 "
 .class
 	$width = 50px
-	$height = 30px
+	$height = 30
 	$border-style = solid
 
 	width: $width
-	height: $height
+	height: {$height}px
 	border: 1px $border-style black
 "
 		),

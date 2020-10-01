@@ -41,7 +41,21 @@ fn parse_value(token: Pair<Rule>) -> Value {
 			)
 		},
 		Rule::var => Value::Variable(token.as_str().into()),
-		Rule::interpolation => Value::Interop(parse_expr(token.into_inner().next().unwrap())),
+		Rule::interpolation => {
+			/*
+			 * Interop: <not_ws>? (<expr> <not_ws>?)+
+			 */
+			Value::Interpolation(
+				token.into_inner()
+					.map(
+						|t| match t.as_rule() {
+							Rule::surround => Expr::Value(Box::new(Value::Keyword(t.as_str().into()))),
+							_ => parse_expr(t)
+						}
+					)
+					.collect()
+			)
+		},
 		Rule::tuple => Value::Tuple(token.into_inner().map(parse_value).collect()),
 		_ => unreachable!(),
 	}

@@ -29,8 +29,15 @@ string_w = _{
 }
 unit = { "%" | ASCII_ALPHA+ }
 dimension = { number ~ unit }
-interpolation = { "{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" }
-tuple = { val ~ (" " ~ val)+ }
+surround = { (ASCII_ALPHANUMERIC | "." | "-" | "_" | escape)+ }
+interpolation = {
+	surround? ~
+	(
+		"{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" ~
+		surround?
+	)+
+}
+tuple = { val ~ (("\t" | " ")+ ~ val)+ }
 var = { ident }
 var_w = _{ "$" ~ var }
 
@@ -38,7 +45,7 @@ var_w = _{ "$" ~ var }
 var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
 
 // Enums
-val = _{ dimension | symbol | hash_w | number | string_w | var_w | interpolation }
+val = _{ interpolation | dimension | symbol | hash_w | number | string_w | var_w }
 value = _{ tuple | val }
 expr = _{ value }
 line = { var_def }

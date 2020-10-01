@@ -26,7 +26,7 @@ pub enum Value {
 	String(String),
 	Dimension(f32, String),
 	Variable(String),
-	Interop(Expr),
+	Interpolation(Vec<Expr>),
 	Tuple(Vec<Value>),
 }
 
