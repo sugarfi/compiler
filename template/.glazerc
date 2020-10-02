@@ -1,0 +1,4 @@
+{
+    "purge": ["**/*.html"],
+    "outDir": "dist"
+}
