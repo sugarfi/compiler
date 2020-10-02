@@ -1,0 +1,5 @@
+.class
+	$border = solid, 1, black, px
+	$zero = 0
+
+	border: {$border[1]}{$border[3]} $border[$zero] $border[2]

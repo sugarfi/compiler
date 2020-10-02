@@ -8,4 +8,4 @@
 		}
 	}
 
-	border: {$border.width}px solid {$border.colors.dark}
+	border: {$border.width}px solid $border.colors.dark

@@ -6,3 +6,8 @@
 	width: $width
 	height: {$height}px
 	border: 1px $border-style black
+
+	a
+		$width = 30px
+
+		width: $width

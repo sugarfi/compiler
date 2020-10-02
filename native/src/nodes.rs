@@ -16,10 +16,10 @@
  */
 
 /*
- * A single CSS value
+ * A single glaze expression
  */
 #[derive(Debug, Clone)]
-pub enum Value {
+pub enum Expr {
 	Keyword(String),
 	Hash(String),
 	Number(f32),
@@ -27,17 +27,11 @@ pub enum Value {
 	Dimension(f32, String),
 	Variable(String),
 	Interpolation(Vec<Expr>),
-	Tuple(Vec<Value>),
-}
-
-/*
- * A single glaze expression
- */
-#[derive(Debug, Clone)]
-pub enum Expr {
-	Accessor(Box<Expr>, Vec<String>),
+	Tuple(Vec<Expr>),
+	ObjectAccessor(Box<Expr>, Vec<String>),
 	Object(Vec<Variable>),
-	Value(Box<Value>),
+	ArrayAccessor(Box<Expr>, Box<Expr>),
+	Array(Vec<Expr>),
 }
 
 /*
@@ -54,7 +48,7 @@ pub enum Line {
 #[derive(Debug, Clone)]
 pub struct Property {
 	pub name: String,
-	pub value: Value,
+	pub expr: Expr,
 }
 
 /*
@@ -94,6 +88,7 @@ pub struct Variable {
 #[derive(Debug, Clone)]
 pub enum Node {
 	Comment(String),
+	Line(Line),
 	Selector(Selector),
 	Mixin(Mixin),
 	EOI,

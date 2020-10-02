@@ -40,3 +40,21 @@ color-weight(c, w)
 	width: 50vw
 	height: 100%
 	padding: 5px 2px
+
+.class-4
+	$border = {
+		width: 1
+		colors: {
+			dark: black
+			medium: gray
+			light: white
+		}
+	}
+
+	border: {$border.width}px solid $border.colors.dark
+
+.class-5
+	$border = solid, 1, black, px
+	$zero = 0
+
+	border: {$border[1]}{$border[3]} $border[$zero] $border[2]

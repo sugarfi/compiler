@@ -21,57 +21,48 @@ use pest::iterators::{Pair, Pairs};
 use peeking_take_while::PeekableExt;
 
 /*
- * Parses token into Value enum
+ * Parses token into Expr enum
  */
-fn parse_value(token: Pair<Rule>) -> Value {
+fn parse_expr(token: Pair<Rule>) -> Expr {
 	match token.as_rule() {
-		Rule::symbol => Value::Keyword(token.as_str().into()),
-		Rule::hash => Value::Hash(token.as_str().into()),
-		Rule::number => Value::Number(token.as_str().parse().unwrap()),
+		Rule::symbol => Expr::Keyword(token.as_str().into()),
+		Rule::hash => Expr::Hash(token.as_str().into()),
+		Rule::number => Expr::Number(token.as_str().parse().unwrap()),
 		Rule::single_string |
-		Rule::double_string => Value::String(token.as_str().into()),
+		Rule::double_string => Expr::String(token.as_str().into()),
 		Rule::dimension => {
 			/*
 		     * Dimension: <number> <symbol>
 			 */
 			let mut inner = token.into_inner();
-			Value::Dimension(
+			Expr::Dimension(
 				inner.next().unwrap().as_str().parse().unwrap(),
 				inner.next().unwrap().as_str().into(),
 			)
 		},
-		Rule::var => Value::Variable(token.as_str().into()),
+		Rule::var => Expr::Variable(token.as_str().into()),
 		Rule::interpolation => {
 			/*
 			 * Interop: <not_ws>? (<expr> <not_ws>?)+
 			 */
-			Value::Interpolation(
+			Expr::Interpolation(
 				token.into_inner()
 					.map(
 						|t| match t.as_rule() {
-							Rule::surround => Expr::Value(Box::new(Value::Keyword(t.as_str().into()))),
+							Rule::surround => Expr::Keyword(t.as_str().into()),
 							_ => parse_expr(t)
 						}
 					)
 					.collect()
 			)
 		},
-		Rule::tuple => Value::Tuple(token.into_inner().map(parse_value).collect()),
-		_ => unreachable!(),
-	}
-}
-
-/*
- * Parses token into Expr enum
- */
-fn parse_expr(token: Pair<Rule>) -> Expr {
-	match token.as_rule() {
-		Rule::accessor => {
+		Rule::tuple => Expr::Tuple(token.into_inner().map(parse_expr).collect()),
+		Rule::object_accessor => {
 			/*
-			 * Accessor: <var> <symbol>+
+			 * Object-accessor: <var> <symbol>+
 			 */
 			let mut inner = token.into_inner();
-			Expr::Accessor(
+			Expr::ObjectAccessor(
 				Box::new(parse_expr(inner.next().unwrap())),
 				inner
 					.map(|t| t.as_str().to_string())
@@ -93,7 +84,27 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 					.collect()
 			)
 		},
-		_ => Expr::Value(Box::new(parse_value(token))),
+		Rule::array_accessor => {
+			/*
+			 * Array-accessor: <var> <expr>
+			 */
+			let mut inner = token.into_inner();
+			Expr::ArrayAccessor(
+				Box::new(parse_expr(inner.next().unwrap())),
+				Box::new(parse_expr(inner.next().unwrap())),
+			)
+		},
+		Rule::array => {
+			/*
+			 * Array: <expr>+
+			 */
+			Expr::Array(
+				token.into_inner()
+					.map(parse_expr)
+					.collect()
+			)
+		},
+		_ => unreachable!(),
 	}
 }
 
@@ -148,24 +159,26 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 			match pair.as_rule() {
 				Rule::property => {
 					/*
-				     * Property: <symbol> <value>
+				     * Property: <symbol> <expr>
 					 */
 					let mut inner = pair.into_inner();
 					props.push(Property {
 						name: inner.next().unwrap().as_str().into(),
-						value: parse_value(inner.next().unwrap()),
+						expr: parse_expr(inner.next().unwrap()),
 					});
 				},
 				Rule::mixin_call => {
 					/*
-				     * Mixin-call: <function> <value>*
+				     * Mixin-call: <function> <array>
 					 */
 					let mut inner = pair.into_inner();
+					let name = inner.next().unwrap().as_str().to_owned();
+					let mut arr = inner.next().unwrap().into_inner();
 					props.push(Property {
-						name: inner.next().unwrap().as_str().into(),
-						value: match inner.clone().count() {
-							1 => parse_value(inner.next().unwrap()),
-							_ => Value::Tuple(inner.map(parse_value).collect()),
+						name,
+						expr: match arr.clone().count() {
+							1 => parse_expr(arr.next().unwrap()),
+							_ => Expr::Tuple(arr.map(parse_expr).collect()),
 						},
 					});
 				},
@@ -218,24 +231,24 @@ fn parse_mixin(token: Pair<Rule>) -> Mixin {
 			match pair.as_rule() {
 				Rule::property => {
 					/*
-				     * Property: <symbol> <value>
+				     * Property: <symbol> <expr>
 					 */
 					let mut inner = pair.into_inner();
 					Property {
 						name: inner.next().unwrap().as_str().into(),
-						value: parse_value(inner.next().unwrap()),
+						expr: parse_expr(inner.next().unwrap()),
 					}
 				},
 				Rule::mixin_call => {
 					/*
-				     * Mixin-call: <function> <value>*
+				     * Mixin-call: <function> <expr>*
 					 */
 					let mut inner = pair.into_inner();
 					Property {
 						name: inner.next().unwrap().as_str().into(),
-						value: match inner.clone().count() {
-							1 => parse_value(inner.next().unwrap()),
-							_ => Value::Tuple(inner.map(parse_value).collect()),
+						expr: match inner.clone().count() {
+							1 => parse_expr(inner.next().unwrap()),
+							_ => Expr::Tuple(inner.map(parse_expr).collect()),
 						},
 					}
 				},

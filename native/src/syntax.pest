@@ -5,7 +5,7 @@ comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
 ident = _{ (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "-"{1,2} | "_" | escape)* }
 nl = _{ ("\t" | " ")* ~ NEWLINE }
 
-// Value
+// Expressions
 symbol = { ident }
 multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 function = { ident }
@@ -37,45 +37,55 @@ interpolation = {
 		surround?
 	)+
 }
-tuple = { val ~ (("\t" | " ")+ ~ val)+ }
+tuple = { value ~ (("\t" | " ")+ ~ value)+ }
 var = { ident? }
 var_w = _{ "$" ~ var }
-
-// Expressions
-accessor = { var_w ~ ("." ~ symbol)+ }
+object_accessor = { var_w ~ ("." ~ symbol)+ }
 object = {
 	"{" ~
 	(
-		WHITE_SPACE* ~ symbol ~ WHITE_SPACE* ~ ":" ~
-		WHITE_SPACE* ~ expr ~ NEWLINE?
+		WHITE_SPACE* ~ symbol ~ 
+		WHITE_SPACE* ~ ":" ~
+		WHITE_SPACE* ~ expr ~
+		("\t" | " ")* ~ NEWLINE
 	)* ~
 	WHITE_SPACE* ~ "}"
+}
+array_accessor = { var_w ~ "[" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "]" }
+array = {
+	(tuple | value) ~
+	(
+		WHITE_SPACE* ~ "," ~
+		WHITE_SPACE* ~ (tuple | value)
+	)+
 }
 
 // Line
 var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
 
 // Enums
-val = _{ interpolation | dimension | symbol | hash_w | number | string_w | var_w }
-value = _{ tuple | val }
-expr = _{ accessor | object | value }
+value = _{
+	object_accessor | object | array_accessor | interpolation | 
+	dimension | symbol | hash_w | number | string_w | var_w
+}
+expr = _{ array | tuple | value }
 line = { var_def }
 
 // Selectors
 indent = _{ "\t" | "    " | "  " | " " }
 sel_bit = _{ ("&" | "/" | "." | "#" | ":" | ident | ("[" ~ ANY* ~ "]"))+ }
 sel = { sel_bit ~ (("\t" | " ")* ~ (sel_bit | ">"))* }
-property = { 
+property = {
 	indent ~
 	symbol ~ WHITE_SPACE* ~
-	": " ~ WHITE_SPACE* ~ value ~
+	": " ~ WHITE_SPACE* ~ expr ~
 	("\t" | " ")* ~
 	NEWLINE?
 }
 mixin_call = {
 	indent ~
 	function_w ~ WHITE_SPACE* ~
-	value ~ (comma ~ value)* ~ WHITE_SPACE* ~ ")" ~ 
+	array ~ WHITE_SPACE* ~ ")" ~ 
 	("\t" | " ")* ~
 	NEWLINE?
 }

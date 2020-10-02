@@ -41,6 +41,7 @@ macro_rules! test {
 	)
 }
 
+test!(array);
 test!(mixins);
 test!(nesting);
 test!(object);

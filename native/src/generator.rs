@@ -38,7 +38,11 @@ impl<'a> Generator {
 	 * Generates CSS & JS from AST
 	 */
 	pub fn generate(&mut self, nodes: Vec<Node>) -> (&str, &str) {
+		self.stack.push(Vec::new());
+
 		nodes.iter().for_each(|node| self.generate_node(node));
+		
+		self.stack.pop();
 
 		(&self.css, &self.js)
 	}
@@ -49,6 +53,7 @@ impl<'a> Generator {
 	fn generate_node(&mut self, node: &Node) {
 		match node {
 			Node::Comment(comment) => self.css += &format!("{}\n\n", comment),
+			Node::Line(line) => self.eval_line(line),
 			Node::Selector(selector) => self.gen_selector(selector),
 			Node::Mixin(mixin) => self.mixins.push((*mixin).clone()),
 			Node::EOI => (),
@@ -82,7 +87,7 @@ impl<'a> Generator {
 	/*
 	 * Finds a field of an object
 	 */
-	fn find_field(&self, props: &Vec<Variable>, fields: &Vec<String>, i: usize) -> Value {
+	fn find_field(&self, props: &Vec<Variable>, fields: &Vec<String>, i: usize) -> Expr {
 		match props.iter().find(|p| &p.name == fields.get(i).unwrap()) {
 			None => panic!("Could not find field {}", fields.get(i).unwrap()),
 			Some(var) => match &var.expr {
@@ -93,31 +98,49 @@ impl<'a> Generator {
 	}
 
 	/*
-	 * Evaluates an expression into a value
+	 * Evaluates an expression into an expression
 	 */
-	fn eval_expr(&self, expr: &Expr) -> Value {
+	fn eval_expr(&self, expr: &Expr) -> Expr {
 		match expr {
-			Expr::Accessor(obj, fields) => {
+			Expr::ObjectAccessor(obj, fields) => {
 				let props = match &**obj {
-					Expr::Value(val) => match &**val {
-						Value::Variable(var) => match self.find_var(&var) {
-							Expr::Object(props) => props,
-							_ => panic!("{} is not an object", var),
-						},
-						_ => unreachable!(),
+					Expr::Variable(var) => match self.find_var(&var) {
+						Expr::Object(props) => props,
+						_ => panic!("{} is not an object", var),
 					},
 					_ => unreachable!(),
 				};
 
-				self.find_field(&props, fields, 0)
+				self.eval_expr(&self.find_field(&props, fields, 0))
 			},
-			Expr::Value(val) => *val.clone(),
-			_ => unreachable!(),
+			Expr::ArrayAccessor(arr, index) => {
+				let arr = match &**arr {
+					Expr::Variable(var) => match self.find_var(&var) {
+						Expr::Array(arr) => arr,
+						_ => panic!("{} is not an array", var),
+					},
+					_ => unreachable!(),
+				};
+
+				let index = match self.eval_expr(index) {
+					Expr::Number(n) => n as usize,
+					_ => panic!("Only numbers can be used to index arrays"),
+				};
+
+				let expr = match arr.get(index) {
+					None => panic!("Index {} is invalid", index),
+					Some(expr) => expr,
+				};
+
+				self.eval_expr(&expr)
+			},
+			Expr::Variable(var) => self.eval_expr(&self.find_var(var)),
+			_ => expr.clone(),
 		}
 	}
 
 	/*
-	 * Evaluates a line of codee
+	 * Evaluates a line of code
 	 */
 	fn eval_line(&mut self, line: &Line) {
 		match line {
@@ -136,7 +159,7 @@ impl<'a> Generator {
 	/*
 	 * Generates properties from a mixin call
 	 */
-	fn get_mixin_props(&mut self, name: &str, args: &[Value]) -> Option<String> {
+	fn get_mixin_props(&mut self, name: &str, args: &[Expr]) -> Option<String> {
 		match self.find_mixin(name) {
 			None => None,
 			Some(mixin) => {
@@ -148,12 +171,10 @@ impl<'a> Generator {
 						.map(
 							|(i, param)| Variable {
 								name: param.to_owned(),
-								expr: Expr::Value(Box::new(
-									args
-										.get(i)
-										.expect("Not enough arguments")
-										.clone()
-								)),
+								expr: args
+									.get(i)
+									.expect("Not enough arguments")
+									.clone(),
 							}
 						)
 						.collect()
@@ -181,9 +202,9 @@ impl<'a> Generator {
 	 */
 	fn gen_prop(&mut self, prop: &Property) -> String {
 		// Maps value to args vector
-		let args = match &prop.value {
-			Value::Tuple(tup) => (*tup).to_vec(),
-			_ => vec![prop.value.clone()],
+		let args = match &prop.expr {
+			Expr::Tuple(tup) => (*tup).to_vec(),
+			_ => vec![prop.expr.clone()],
 		};
 
 		// Checks if property name is an existing mixin
@@ -191,7 +212,7 @@ impl<'a> Generator {
 			&prop.name, 
 			&args,
 		) {
-			None => format!("\t{}: {};\n", prop.name, self.gen_value(&prop.value)),
+			None => format!("\t{}: {};\n", prop.name, self.gen_expr(&prop.expr)),
 			Some(props) => props,
 		}
 	}
@@ -247,28 +268,36 @@ impl<'a> Generator {
 	}
 
 	/*
-	 * Generates CSS from a value node
+	 * Generates CSS from an expr node
 	 */
-	fn gen_value(&self, value: &Value) -> String {
-		match value {
-			Value::Keyword(kw) => kw.to_string(),
-			Value::Number(n) => n.to_string(),
-			Value::String(s) => format!("\"{}\"", s),
-			Value::Hash(h) => format!("#{}", h),
-			Value::Dimension(v, u) => format!("{}{}", v, u),
-			Value::Variable(var) => self.gen_value(&self.eval_expr(&self.find_var(var))),
-			Value::Interpolation(exprs) => {
+	fn gen_expr(&self, expr: &Expr) -> String {
+		match expr {
+			Expr::Keyword(kw) => kw.to_string(),
+			Expr::Number(n) => n.to_string(),
+			Expr::String(s) => format!("\"{}\"", s),
+			Expr::Hash(h) => format!("#{}", h),
+			Expr::Dimension(v, u) => format!("{}{}", v, u),
+			Expr::Interpolation(exprs) => {
 				exprs.iter()
-					.map(|e| self.gen_value(&self.eval_expr(e)))
+					.map(|e| self.gen_expr(&self.eval_expr(e)))
 					.collect()
 			},
-			Value::Tuple(tup) => {
-				(*tup)
+			Expr::Tuple(tup) => {
+				tup
 					.iter()
-					.map(|v| self.gen_value(v))
+					.map(|e| self.gen_expr(e))
 					.collect::<Vec<String>>()
 					.join(" ")
 			},
+			Expr::Array(arr) => {
+				arr
+					.iter()
+					.map(|e| self.gen_expr(e))
+					.collect::<Vec<String>>()
+					.join(", ")
+			},
+			Expr::Object(_) => panic!("Object types cannot be resolved to CSS"), // temp
+			_ => self.gen_expr(&self.eval_expr(expr)),
 		}
 	}
 }
