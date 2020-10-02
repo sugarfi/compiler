@@ -104,6 +104,18 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 					.collect()
 			)
 		},
+		Rule::operation => {
+			/*
+			 * Addition: <op> <expr> <expr>
+			 */
+			let mut inner = token.into_inner();
+			let a = Box::new(parse_expr(inner.next().unwrap()));
+			Expr::Operation(
+				inner.next().unwrap().as_str().into(),
+				a,
+				Box::new(parse_expr(inner.next().unwrap())),
+			)
+		},
 		_ => unreachable!(),
 	}
 }
@@ -124,12 +136,25 @@ fn parse_line(token: Pair<Rule>) -> Line {
 				parse_expr(inner.next().unwrap()),
 			)
 		},
+		Rule::for_loop => {
+			/*
+			 * For-loop: <var> <expr> <line>+
+			 */
+			let mut inner = line.into_inner();
+			Line::ForLoop(
+				inner.next().unwrap().as_str().into(),
+				parse_expr(inner.next().unwrap()),
+				inner
+					.map(parse_line)
+					.collect()
+			)
+		},
 		_ => unreachable!(),
 	}
 }
 
 /*
- * Selector: <sel>+ <line>* <property|mixin_call|subsel>+
+ * Selector: <sel>+ <line>* <property|mixin_call|selector>+
  */
 fn parse_selector(token: Pair<Rule>) -> Selector {
 	let mut inner = token.into_inner().peekable();
@@ -149,7 +174,7 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 		.map(parse_line)
 		.collect();
 
-	// <property|mixin_call|subsel>+
+	// <property|mixin_call|selector>+
 
 	let mut props = Vec::<Property>::new();
 	let mut nested = Vec::<Selector>::new();
@@ -182,12 +207,7 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 						},
 					});
 				},
-				Rule::subsel => {
-					/*
-					 * Sub-selector: <sel>+ <property|mixin_call|subsel>*
-					 */
-					nested.push(parse_selector(pair));
-				},
+				Rule::selector => nested.push(parse_selector(pair)),
 				_ => unreachable!(),
 			}
 		}
@@ -273,6 +293,7 @@ pub fn parse(tokens: Pairs<Rule>) -> Vec<Node> {
 		|token| {
 			match token.as_rule() {
 				Rule::multi_line_comment => Node::Comment(token.as_str().into()),
+				Rule::line => Node::Line(parse_line(token)),
 				Rule::selector => Node::Selector(parse_selector(token)),
 				Rule::mixin => Node::Mixin(parse_mixin(token)),
 				Rule::EOI => Node::EOI,

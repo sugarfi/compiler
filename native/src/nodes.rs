@@ -32,6 +32,7 @@ pub enum Expr {
 	Object(Vec<Variable>),
 	ArrayAccessor(Box<Expr>, Box<Expr>),
 	Array(Vec<Expr>),
+	Operation(String, Box<Expr>, Box<Expr>),
 }
 
 /*
@@ -40,6 +41,7 @@ pub enum Expr {
 #[derive(Debug, Clone)]
 pub enum Line {
 	VarDef(String, Expr),
+	ForLoop(String, Expr, Vec<Line>),
 }
 
 /*

@@ -18,7 +18,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 	let mut g = c.benchmark_group("sample-size-example");
     g.sample_size(320);
 
-	let source = fs::read_to_string("benches/test.glz").unwrap();
+	let source = fs::read_to_string("benches/example.glz").unwrap();
 
     if args.iter().any(|a| a == "tokenize") {
         g.bench_function("tokenize", |b| b.iter(|| tokenize(black_box(&source))));

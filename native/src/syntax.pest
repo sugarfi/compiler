@@ -1,11 +1,12 @@
 // Helper
 escape = _{ "\\" ~ (!(NEWLINE | ASCII_HEX_DIGIT) ~ ANY | ASCII_HEX_DIGIT{1,6}) }
 single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
-comma = _{ WHITE_SPACE* ~ "," ~ WHITE_SPACE* }
+comma = _{ ws ~ "," ~ ws }
 ident = _{ (ASCII_ALPHA | "-"{1,2} | "_" | escape) ~ (ASCII_ALPHANUMERIC | "-"{1,2} | "_" | escape)* }
+ws = _{ WHITE_SPACE* }
 nl = _{ ("\t" | " ")* ~ NEWLINE }
 
-// Expressions
+// Base expressions
 symbol = { ident }
 multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 function = { ident }
@@ -29,92 +30,100 @@ string_w = _{
 }
 unit = { "%" | ASCII_ALPHA+ }
 dimension = { number ~ unit }
-surround = { (ASCII_ALPHANUMERIC | "." | "-" | "_" | escape)+ }
+var = { ident? }
+var_w = _{ "$" ~ var }
+
+// Composite expressions
+surround = { (ASCII_ALPHANUMERIC | "." | "-" | "_" | "#" | "@" | escape)+ }
 interpolation = {
 	surround? ~
 	(
-		"{" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "}" ~
+		"{" ~ ws ~ expr ~ ws ~ "}" ~
 		surround?
 	)+
 }
 tuple = { value ~ (("\t" | " ")+ ~ value)+ }
-var = { ident? }
-var_w = _{ "$" ~ var }
 object_accessor = { var_w ~ ("." ~ symbol)+ }
 object = {
 	"{" ~
 	(
-		WHITE_SPACE* ~ symbol ~ 
-		WHITE_SPACE* ~ ":" ~
-		WHITE_SPACE* ~ expr ~
-		("\t" | " ")* ~ NEWLINE
+		ws ~ symbol ~ 
+		ws ~ ":" ~
+		ws ~ expr ~
+		nl
 	)* ~
-	WHITE_SPACE* ~ "}"
+	ws ~ "}"
 }
-array_accessor = { var_w ~ "[" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ "]" }
+array_accessor = { var_w ~ "[" ~ ws ~ expr ~ ws ~ "]" }
 array = {
 	(tuple | value) ~
 	(
-		WHITE_SPACE* ~ "," ~
-		WHITE_SPACE* ~ (tuple | value)
+		ws ~ "," ~
+		ws ~ (tuple | value)
 	)+
 }
+op = { "+" }
+operation = { value ~ ws ~ op ~ ws ~ value }
 
 // Line
-var_def = { var_w ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ expr }
+var_def = { var_w ~ ws ~ "=" ~ ws ~ expr }
+for_loop = { 
+	"for" ~ ws ~ var_w ~ ws ~ "in" ~ ws ~ expr ~ nl ~
+	PEEK_ALL ~ PUSH(indent) ~ line ~
+	(PEEK_ALL ~ line)* ~
+	DROP
+}
 
 // Enums
 value = _{
-	object_accessor | object | array_accessor | interpolation | 
+	object_accessor | object | array_accessor | interpolation |
 	dimension | symbol | hash_w | number | string_w | var_w
 }
-expr = _{ array | tuple | value }
-line = { var_def }
+expr = _{ operation | array | tuple | value }
+line = { var_def | for_loop }
 
 // Selectors
 indent = _{ "\t" | "    " | "  " | " " }
 sel_bit = _{ ("&" | "/" | "." | "#" | ":" | ident | ("[" ~ ANY* ~ "]"))+ }
 sel = { sel_bit ~ (("\t" | " ")* ~ (sel_bit | ">"))* }
 property = {
-	indent ~
-	symbol ~ WHITE_SPACE* ~
-	": " ~ WHITE_SPACE* ~ expr ~
+	symbol ~ ws ~
+	": " ~ ws ~ expr ~
 	("\t" | " ")* ~
 	NEWLINE?
 }
 mixin_call = {
-	indent ~
-	function_w ~ WHITE_SPACE* ~
-	array ~ WHITE_SPACE* ~ ")" ~ 
+	function_w ~ ws ~
+	array ~ ws ~ ")" ~ 
 	("\t" | " ")* ~
 	NEWLINE?
-}
-subsel = {
-	PUSH(indent) ~
-	sel ~ (comma ~ sel)* ~ ("\t" | " ")* ~
-	NEWLINE ~
-	(PEEK_ALL ~ indent ~ line ~ NEWLINE)* ~
-	(nl | PEEK_ALL ~ (property | mixin_call | subsel))+ ~
-	DROP
 }
 
 // Nodes
 selector = {
-	sel ~ (comma ~ sel)* ~
-	NEWLINE ~
-	(nl | indent ~ line ~ NEWLINE)* ~
-	(nl | property | mixin_call | subsel)+
+	sel ~ (comma ~ sel)* ~ ("\t" | " ")* ~ NEWLINE ~
+	(
+		PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
+		(PEEK_ALL ~ line ~ NEWLINE)* |
+		PEEK_ALL ~ PUSH(indent) ~ (property | mixin_call | selector)
+	) ~
+	(nl | PEEK_ALL ~ (property | mixin_call | selector))* ~
+	DROP
 }
 mixin = { 
-	function_w ~ WHITE_SPACE* ~
-	symbol ~ (comma ~ symbol)* ~ WHITE_SPACE* ~
-	")" ~ NEWLINE ~
-	(nl | indent ~ line ~ NEWLINE)* ~
-	(nl | property)+
+	function_w ~ ws ~
+	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ NEWLINE ~
+	(
+		PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
+		(PEEK_ALL ~ line ~ NEWLINE)* |
+		PEEK_ALL ~ PUSH(indent) ~ property
+	) ~
+	(nl | PEEK_ALL ~ property)* ~
+	DROP
 }
 
 // Root
-node = _{ single_line_comment | multi_line_comment | selector | mixin }
+node = _{ single_line_comment | multi_line_comment | line | selector | mixin }
 file = _{
     SOI ~
     NEWLINE* ~

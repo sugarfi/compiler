@@ -98,7 +98,7 @@ impl<'a> Generator {
 	}
 
 	/*
-	 * Evaluates an expression into an expression
+	 * Evaluates a composite expression into a base expression
 	 */
 	fn eval_expr(&self, expr: &Expr) -> Expr {
 		match expr {
@@ -134,7 +134,14 @@ impl<'a> Generator {
 
 				self.eval_expr(&expr)
 			},
-			Expr::Variable(var) => self.eval_expr(&self.find_var(var)),
+			Expr::Variable(var) => self.find_var(var),
+			Expr::Operation(op, a, b) => match op.as_str() {
+				"+" => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Number(a + b),
+					_ => panic!("Cannot use +"),
+				},
+				_ => unreachable!(),
+			},
 			_ => expr.clone(),
 		}
 	}
@@ -145,14 +152,52 @@ impl<'a> Generator {
 	fn eval_line(&mut self, line: &Line) {
 		match line {
 			Line::VarDef(name, expr) => {
-				self.stack
-					.last_mut()
-					.unwrap()
-					.push(Variable {
-						name: name.to_string(),
-						expr: expr.clone(),
-					});
-			}
+				self.push_var(Variable {
+					name: name.to_string(),
+					expr: self.eval_expr(expr),
+				})
+			},
+			Line::ForLoop(var, iter, lines) => {
+				let iter = match self.eval_expr(iter) {
+					Expr::Tuple(tup) => tup,
+					Expr::Array(arr) => arr,
+					_ => panic!("Not iterable"),
+				};
+
+				iter.iter().for_each(
+					|item| {
+						self.push_var(Variable {
+							name: var.clone(),
+							expr: item.clone(),
+						});
+
+						lines.iter().for_each(|l| self.eval_line(l));
+					}
+				);
+			},
+		}
+	}
+
+	/*
+	 * Pushes a variable into the current scope
+	 */
+	fn push_var(&mut self, var: Variable) {
+		let scope = self.stack
+			.last_mut()
+			.unwrap();
+
+		match scope.iter().find(|v| v.name == var.name) {
+			None => scope.push(var),
+			Some(_) => {
+				scope.clear();
+				scope.extend(
+					scope.iter()
+						.filter(|v| v.name != var.name)
+						.chain(vec![var.clone()].iter())
+						.map(|v| v.clone())
+						.collect::<Vec<Variable>>()
+				);
+			},
 		}
 	}
 
@@ -268,7 +313,7 @@ impl<'a> Generator {
 	}
 
 	/*
-	 * Generates CSS from an expr node
+	 * Generates CSS from a base expression
 	 */
 	fn gen_expr(&self, expr: &Expr) -> String {
 		match expr {
