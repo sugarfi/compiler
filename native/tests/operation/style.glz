@@ -1,0 +1,9 @@
+.class
+	prop: 1 + 4 + 3
+	prop: 3 * 6
+	prop: 7 - 3
+	prop: 24/3
+	prop: 2 * 3 + 4 * 5
+	prop: 2 * (3 + 4) * 5
+	prop: 1..3
+	prop: 1..=3

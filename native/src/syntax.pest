@@ -42,7 +42,7 @@ interpolation = {
 		surround?
 	)+
 }
-tuple = { value ~ (("\t" | " ")+ ~ value)+ }
+tuple = { (operation | value) ~ (("\t" | " ")+ ~ (operation | value))+ }
 object_accessor = { var_w ~ ("." ~ symbol)+ }
 object = {
 	"{" ~
@@ -56,14 +56,33 @@ object = {
 }
 array_accessor = { var_w ~ "[" ~ ws ~ expr ~ ws ~ "]" }
 array = {
-	(tuple | value) ~
+	(operation | tuple | value) ~
 	(
 		ws ~ "," ~
-		ws ~ (tuple | value)
+		ws ~ (operation | tuple | value)
 	)+
 }
-op = { "+" }
-operation = { value ~ ws ~ op ~ ws ~ value }
+
+// Operations
+op_1_symbol = { "+" | "-" }
+op_1 = {
+	(parens | op_2 | op_3 | !symbol ~ value) ~ ws ~
+	op_1_symbol ~ ws ~
+	(op_1 | parens | op_2 | op_3 | !symbol ~ value)
+}
+op_2_symbol = { "*" | "/" }
+op_2 = {
+	(parens | op_3 | !symbol ~ value) ~ ws ~
+	op_2_symbol ~ ws ~
+	(op_2 | parens | op_3 | !symbol ~ value)
+}
+op_3_symbol = { "..=" | ".." }
+op_3 = {
+	(parens | !symbol ~ value) ~ ws ~
+	op_3_symbol ~ ws ~
+	(op_3 | parens | !symbol ~ value)
+}
+operation = _{ op_1 | op_2 | op_3 }
 
 // Line
 var_def = { var_w ~ ws ~ "=" ~ ws ~ expr }
@@ -79,7 +98,8 @@ value = _{
 	object_accessor | object | array_accessor | interpolation |
 	dimension | symbol | hash_w | number | string_w | var_w
 }
-expr = _{ operation | array | tuple | value }
+parens = _{ "(" ~ ws ~ expr ~ ws ~ ")" }
+expr = _{ parens | operation | array | tuple | value }
 line = { var_def | for_loop }
 
 // Selectors

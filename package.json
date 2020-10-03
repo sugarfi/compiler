@@ -11,7 +11,8 @@
         "cli": "neon build && node .",
         "build": "neon build --release",
         "clean": "neon clean",
-        "lint": "eslint lib --fix"
+        "lint": "eslint lib --fix",
+        "add_test": "node scripts/add_test.js"
     },
     "dependencies": {
         "chalk": "^4.1.0",

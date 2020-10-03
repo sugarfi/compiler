@@ -104,7 +104,9 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 					.collect()
 			)
 		},
-		Rule::operation => {
+		Rule::op_1 |
+		Rule::op_2 |
+		Rule::op_3 => {
 			/*
 			 * Addition: <op> <expr> <expr>
 			 */

@@ -140,6 +140,34 @@ impl<'a> Generator {
 					(Expr::Number(a), Expr::Number(b)) => Expr::Number(a + b),
 					_ => panic!("Cannot use +"),
 				},
+				"-" => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Number(a - b),
+					_ => panic!("Cannot use +"),
+				},
+				"*" => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Number(a * b),
+					_ => panic!("Cannot use +"),
+				},
+				"/" => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Number(a / b),
+					_ => panic!("Cannot use +"),
+				},
+				".." => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Array(
+						((a as u32)..(b as u32))
+							.map(|n| Expr::Number(n as f32))
+							.collect()
+					),
+					_ => panic!("Cannot use .."),
+				},
+				"..=" => match (self.eval_expr(a), self.eval_expr(b)) {
+					(Expr::Number(a), Expr::Number(b)) => Expr::Array(
+						((a as u32)..=(b as u32))
+							.map(|n| Expr::Number(n as f32))
+							.collect()
+					),
+					_ => panic!("Cannot use .."),
+				},
 				_ => unreachable!(),
 			},
 			_ => expr.clone(),
