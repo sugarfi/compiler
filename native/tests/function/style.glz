@@ -1,0 +1,8 @@
+fn add(a, b)
+	return $a + $b
+
+fn double(a)
+	return $a * 2
+
+.class
+	font-weight: (add(3, 4) - 1) * double(50)

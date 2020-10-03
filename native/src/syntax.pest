@@ -9,8 +9,8 @@ nl = _{ ("\t" | " ")* ~ NEWLINE }
 // Base expressions
 symbol = { ident }
 multi_line_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
-function = { ident }
-function_w = _{ function ~ "(" }
+func = { ident }
+func_w = _{ func ~ "(" }
 atrule = { ident }
 atrule_w = { "@" ~ atrule }
 hash = { ASCII_HEX_DIGIT{1,6} }
@@ -56,51 +56,61 @@ object = {
 }
 array_accessor = { var_w ~ "[" ~ ws ~ expr ~ ws ~ "]" }
 array = {
-	(operation | tuple | value) ~
+	(operation | parens | tuple | value) ~
 	(
 		ws ~ "," ~
-		ws ~ (operation | tuple | value)
+		ws ~ (operation | parens | tuple | value)
 	)+
 }
+arg = { operation | parens | tuple | value }
+function_call = { func_w ~ ws ~ (array | arg) ~ ws ~ ")" }
 
 // Operations
-op_1_symbol = { "+" | "-" }
+op_1_symbol = { "++" }
 op_1 = {
-	(parens | op_2 | op_3 | !symbol ~ value) ~ ws ~
+	(parens | op_2 | op_3 | op_4 | value) ~ ws ~
 	op_1_symbol ~ ws ~
-	(op_1 | parens | op_2 | op_3 | !symbol ~ value)
+	(op_1 | parens | op_2 | op_3 | op_4 | value)
 }
-op_2_symbol = { "*" | "/" }
+op_2_symbol = { "..=" | ".." }
 op_2 = {
-	(parens | op_3 | !symbol ~ value) ~ ws ~
+	(parens | op_3 | op_4 | value) ~ ws ~
 	op_2_symbol ~ ws ~
-	(op_2 | parens | op_3 | !symbol ~ value)
+	(op_2 | parens | op_3 | op_4 | value)
 }
-op_3_symbol = { "..=" | ".." }
+op_3_symbol = { "+" | "-" }
 op_3 = {
-	(parens | !symbol ~ value) ~ ws ~
+	(parens | op_4 | value) ~ ws ~
 	op_3_symbol ~ ws ~
-	(op_3 | parens | !symbol ~ value)
+	(op_3 | parens | op_4 | value)
 }
-operation = _{ op_1 | op_2 | op_3 }
+op_4_symbol = { "*" | "/" }
+op_4 = {
+	(parens | value) ~ ws ~
+	op_4_symbol ~ ws ~
+	(op_4 | parens | value)
+}
+operation = _{ op_1 | op_2 | op_3 | op_4 }
 
-// Line
+// Lines
 var_def = { var_w ~ ws ~ "=" ~ ws ~ expr }
 for_loop = { 
-	"for" ~ ws ~ var_w ~ ws ~ "in" ~ ws ~ expr ~ nl ~
+	"for" ~ WHITE_SPACE+ ~ var_w ~ WHITE_SPACE+ ~
+	"in" ~ WHITE_SPACE+ ~ expr ~ nl ~
 	PEEK_ALL ~ PUSH(indent) ~ line ~
 	(PEEK_ALL ~ line)* ~
 	DROP
 }
+ret = { "return" ~ WHITE_SPACE+ ~ expr }
 
 // Enums
 value = _{
-	object_accessor | object | array_accessor | interpolation |
-	dimension | symbol | hash_w | number | string_w | var_w
+	object_accessor | object | array_accessor | function_call |
+	interpolation | dimension | symbol | hash_w | number | string_w | var_w
 }
 parens = _{ "(" ~ ws ~ expr ~ ws ~ ")" }
-expr = _{ parens | operation | array | tuple | value }
-line = { var_def | for_loop }
+expr = _{ operation | parens | array | tuple | value }
+line = { var_def | for_loop | ret }
 
 // Selectors
 indent = _{ "\t" | "    " | "  " | " " }
@@ -113,8 +123,8 @@ property = {
 	NEWLINE?
 }
 mixin_call = {
-	function_w ~ ws ~
-	array ~ ws ~ ")" ~ 
+	func_w ~ ws ~
+	(array | arg) ~ ws ~ ")" ~ 
 	("\t" | " ")* ~
 	NEWLINE?
 }
@@ -130,8 +140,8 @@ selector = {
 	(nl | PEEK_ALL ~ (property | mixin_call | selector))* ~
 	DROP
 }
-mixin = { 
-	function_w ~ ws ~
+mixin = {
+	func_w ~ ws ~
 	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ NEWLINE ~
 	(
 		PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
@@ -141,9 +151,16 @@ mixin = {
 	(nl | PEEK_ALL ~ property)* ~
 	DROP
 }
+function = {
+	"fn" ~ WHITE_SPACE+ ~ func_w ~ ws ~
+	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ NEWLINE ~
+	PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
+	(PEEK_ALL ~ line ~ NEWLINE)* ~
+	DROP
+}
 
 // Root
-node = _{ single_line_comment | multi_line_comment | line | selector | mixin }
+node = _{ single_line_comment | multi_line_comment | line | selector | mixin | function }
 file = _{
     SOI ~
     NEWLINE* ~

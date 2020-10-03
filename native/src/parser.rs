@@ -104,11 +104,25 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 					.collect()
 			)
 		},
+		Rule::function_call => {
+			/*
+			 * Function-call: <func> <array>
+			 */
+			let mut inner = token.into_inner();
+			Expr::FunctionCall(
+				inner.next().unwrap().as_str().into(),
+				inner.next().unwrap()
+					.into_inner()
+					.map(parse_expr)
+					.collect(),
+			)
+		},
 		Rule::op_1 |
 		Rule::op_2 |
-		Rule::op_3 => {
+		Rule::op_3 |
+		Rule::op_4 => {
 			/*
-			 * Addition: <op> <expr> <expr>
+			 * Operation: <expr> <op_symbol> <expr>
 			 */
 			let mut inner = token.into_inner();
 			let a = Box::new(parse_expr(inner.next().unwrap()));
@@ -149,6 +163,14 @@ fn parse_line(token: Pair<Rule>) -> Line {
 				inner
 					.map(parse_line)
 					.collect()
+			)
+		},
+		Rule::ret => {
+			/*
+			 * Return: <expr>
+			 */
+			Line::Return(
+				parse_expr(line.into_inner().next().unwrap()),
 			)
 		},
 		_ => unreachable!(),
@@ -196,7 +218,7 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 				},
 				Rule::mixin_call => {
 					/*
-				     * Mixin-call: <function> <array>
+				     * Mixin-call: <func> <array>
 					 */
 					let mut inner = pair.into_inner();
 					let name = inner.next().unwrap().as_str().to_owned();
@@ -224,12 +246,12 @@ fn parse_selector(token: Pair<Rule>) -> Selector {
 }
 
 /*
- * Mixin: <function> <symbol>* <line>* <property>+
+ * Mixin: <func> <symbol>* <line>* <property>+
  */
 fn parse_mixin(token: Pair<Rule>) -> Mixin {
 	let mut inner = token.into_inner().peekable();
 
-	// <function>
+	// <func>
 	let name = inner.next().unwrap().as_str();
 
 	// <symbol>*
@@ -263,7 +285,7 @@ fn parse_mixin(token: Pair<Rule>) -> Mixin {
 				},
 				Rule::mixin_call => {
 					/*
-				     * Mixin-call: <function> <expr>*
+				     * Mixin-call: <func> <expr>*
 					 */
 					let mut inner = pair.into_inner();
 					Property {
@@ -288,6 +310,37 @@ fn parse_mixin(token: Pair<Rule>) -> Mixin {
 }
 
 /*
+ * Function: <func> <symbol>* <line>+
+ */
+fn parse_function(token: Pair<Rule>) -> Function {
+	let mut inner = token.into_inner().peekable();
+
+	// <function>
+	let name = inner.next().unwrap().as_str();
+
+	// <symbol>*
+	let params = inner
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::symbol)
+		.map(|p| p.as_str().to_owned())
+		.collect();
+
+	// <line>+
+
+	let lines = inner
+		.by_ref()
+		.peeking_take_while(|p| p.as_rule() == Rule::line)
+		.map(parse_line)
+		.collect();
+
+	Function {
+		name: name.into(),
+		params,
+		lines,
+	}
+}
+
+/*
  * Generates AST from parsed tokens
  */
 pub fn parse(tokens: Pairs<Rule>) -> Vec<Node> {
@@ -298,6 +351,7 @@ pub fn parse(tokens: Pairs<Rule>) -> Vec<Node> {
 				Rule::line => Node::Line(parse_line(token)),
 				Rule::selector => Node::Selector(parse_selector(token)),
 				Rule::mixin => Node::Mixin(parse_mixin(token)),
+				Rule::function => Node::Function(parse_function(token)),
 				Rule::EOI => Node::EOI,
 				_ => unreachable!(),
 			}

@@ -33,6 +33,7 @@ pub enum Expr {
 	ArrayAccessor(Box<Expr>, Box<Expr>),
 	Array(Vec<Expr>),
 	Operation(String, Box<Expr>, Box<Expr>),
+	FunctionCall(String, Vec<Expr>),
 }
 
 /*
@@ -42,6 +43,7 @@ pub enum Expr {
 pub enum Line {
 	VarDef(String, Expr),
 	ForLoop(String, Expr, Vec<Line>),
+	Return(Expr),
 }
 
 /*
@@ -76,6 +78,16 @@ pub struct Mixin {
 }
 
 /*
+ * A function definition
+ */
+#[derive(Debug, Clone)]
+pub struct Function {
+	pub name: String,
+	pub params: Vec<String>,
+	pub lines: Vec<Line>,
+}
+
+/*
  * Variable stored in memory
  */
 #[derive(Debug, Clone)]
@@ -93,5 +105,6 @@ pub enum Node {
 	Line(Line),
 	Selector(Selector),
 	Mixin(Mixin),
+	Function(Function),
 	EOI,
 }
