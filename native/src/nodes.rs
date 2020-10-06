@@ -18,12 +18,13 @@
 /*
  * A single glaze expression
  */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expr {
 	Keyword(String),
 	Hash(String),
 	Number(f32),
 	String(String),
+	Boolean(bool),
 	Dimension(f32, String),
 	Variable(String),
 	Interpolation(Vec<Expr>),
@@ -44,6 +45,7 @@ pub enum Line {
 	VarDef(String, Expr),
 	ForLoop(String, Expr, Vec<Line>),
 	Return(Expr),
+	If(Expr, Vec<Line>, Vec<(Expr, Vec<Line>)>, Vec<Line>),
 }
 
 /*
@@ -90,7 +92,7 @@ pub struct Function {
 /*
  * Variable stored in memory
  */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Variable {
 	pub name: String,
 	pub expr: Expr,

@@ -28,6 +28,7 @@ string_w = _{
 	("\"" ~ double_string ~ "\"")
 	| ("'" ~ single_string ~ "'")
 }
+boolean = { "%t" | "%f" }
 unit = { "%" | ASCII_ALPHA+ }
 dimension = { number ~ unit }
 var = { ident? }
@@ -66,51 +67,83 @@ arg = { operation | parens | tuple | value }
 function_call = { func_w ~ ws ~ (array | arg) ~ ws ~ ")" }
 
 // Operations
-op_1_symbol = { "++" }
+op_1_symbol = { "and" | "or" }
 op_1 = {
-	(parens | op_2 | op_3 | op_4 | value) ~ ws ~
+	(parens | op_2 | op_3 | op_4 | op_5 | op_6 | value) ~ ws ~
 	op_1_symbol ~ ws ~
-	(op_1 | parens | op_2 | op_3 | op_4 | value)
+	(op_1 | parens | op_2 | op_3 | op_4 | op_5 | op_6 | value)
 }
-op_2_symbol = { "..=" | ".." }
+op_2_symbol = { "==" | "!=" | ">" | "<" | ">=" | "<=" }
 op_2 = {
-	(parens | op_3 | op_4 | value) ~ ws ~
+	(parens | op_3 | op_4 | op_5 | op_6 | value) ~ ws ~
 	op_2_symbol ~ ws ~
-	(op_2 | parens | op_3 | op_4 | value)
+	(op_2 | parens | op_3 | op_4 | op_5 | op_6 | value)
 }
-op_3_symbol = { "+" | "-" }
+op_3_symbol = { "++" }
 op_3 = {
-	(parens | op_4 | value) ~ ws ~
+	(parens | op_4 | op_5 | op_6 | value) ~ ws ~
 	op_3_symbol ~ ws ~
-	(op_3 | parens | op_4 | value)
+	(op_3 | parens | op_4 | op_5 | op_6 | value)
 }
-op_4_symbol = { "*" | "/" }
+op_4_symbol = { "..=" | ".." }
 op_4 = {
-	(parens | value) ~ ws ~
+	(parens | op_5 | op_6 | value) ~ ws ~
 	op_4_symbol ~ ws ~
-	(op_4 | parens | value)
+	(op_4 | parens | op_5 | op_6 | value)
 }
-operation = _{ op_1 | op_2 | op_3 | op_4 }
+op_5_symbol = { "+" | "-" }
+op_5 = {
+	(parens | op_6 | value) ~ ws ~
+	op_5_symbol ~ ws ~
+	(op_5 | parens | op_6 | value)
+}
+op_6_symbol = { "*" | "/" }
+op_6 = {
+	(parens | value) ~ ws ~
+	op_6_symbol ~ ws ~
+	(op_6 | parens | value)
+}
+operation = _{ op_1 | op_2 | op_3 | op_4 | op_5 | op_6 }
 
 // Lines
 var_def = { var_w ~ ws ~ "=" ~ ws ~ expr }
 for_loop = { 
 	"for" ~ WHITE_SPACE+ ~ var_w ~ WHITE_SPACE+ ~
 	"in" ~ WHITE_SPACE+ ~ expr ~ nl ~
-	PEEK_ALL ~ PUSH(indent) ~ line ~
-	(PEEK_ALL ~ line)* ~
+	PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+	(PEEK_ALL ~ line ~ nl)* ~
 	DROP
 }
 ret = { "return" ~ WHITE_SPACE+ ~ expr }
+else_kw = { "else" }
+if_stmt = {
+	"if" ~ WHITE_SPACE+ ~ expr ~ nl ~
+	PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+	(PEEK_ALL ~ line ~ nl)* ~
+	DROP ~
+	(
+		PEEK_ALL ~ "elseif" ~ WHITE_SPACE+ ~ expr ~ nl ~
+		PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+		(PEEK_ALL ~ line ~ nl)* ~
+		DROP
+	)* ~
+	(
+		PEEK_ALL ~ else_kw ~ nl ~
+		PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+		(PEEK_ALL ~ line ~ nl)* ~
+		DROP
+	)?
+}
 
 // Enums
 value = _{
 	object_accessor | object | array_accessor | function_call |
-	interpolation | dimension | symbol | hash_w | number | string_w | var_w
+	interpolation | dimension | symbol | hash_w | number | string_w |
+	boolean | var_w
 }
 parens = _{ "(" ~ ws ~ expr ~ ws ~ ")" }
 expr = _{ operation | parens | array | tuple | value }
-line = { var_def | for_loop | ret }
+line = { var_def | for_loop | ret | if_stmt }
 
 // Selectors
 indent = _{ "\t" | "    " | "  " | " " }
@@ -131,10 +164,10 @@ mixin_call = {
 
 // Nodes
 selector = {
-	sel ~ (comma ~ sel)* ~ ("\t" | " ")* ~ NEWLINE ~
+	sel ~ (comma ~ sel)* ~ nl ~
 	(
-		PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
-		(PEEK_ALL ~ line ~ NEWLINE)* |
+		PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+		(PEEK_ALL ~ line ~ nl)* |
 		PEEK_ALL ~ PUSH(indent) ~ (property | mixin_call | selector)
 	) ~
 	(nl | PEEK_ALL ~ (property | mixin_call | selector))* ~
@@ -142,10 +175,10 @@ selector = {
 }
 mixin = {
 	func_w ~ ws ~
-	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ NEWLINE ~
+	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ nl ~
 	(
-		PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
-		(PEEK_ALL ~ line ~ NEWLINE)* |
+		PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+		(PEEK_ALL ~ line ~ nl)* |
 		PEEK_ALL ~ PUSH(indent) ~ property
 	) ~
 	(nl | PEEK_ALL ~ property)* ~
@@ -153,9 +186,9 @@ mixin = {
 }
 function = {
 	"fn" ~ WHITE_SPACE+ ~ func_w ~ ws ~
-	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ NEWLINE ~
-	PEEK_ALL ~ PUSH(indent) ~ line ~ NEWLINE ~
-	(PEEK_ALL ~ line ~ NEWLINE)* ~
+	symbol ~ (comma ~ symbol)* ~ ws ~ ")" ~ nl ~
+	PEEK_ALL ~ PUSH(indent) ~ line ~ nl ~
+	(PEEK_ALL ~ line ~ nl)* ~
 	DROP
 }
 

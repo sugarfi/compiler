@@ -29,11 +29,9 @@ fn main() {
 
     write_header(&mut test_file);
 
-    let directories = read_dir("./tests").unwrap();
-
-    for directory in directories {
-        write_test(&mut test_file, &directory.unwrap());
-    }
+    read_dir("./tests").unwrap().for_each(
+        |dir| write_test(&mut test_file, &dir.unwrap())
+    );
 }
 
 fn write_test(test_file: &mut File, directory: &DirEntry) {

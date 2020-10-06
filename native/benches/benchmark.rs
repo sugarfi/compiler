@@ -16,28 +16,46 @@ fn criterion_benchmark(c: &mut Criterion) {
         };
 
 	let mut g = c.benchmark_group("sample-size-example");
-    g.sample_size(320);
+    g.sample_size(10);
 
-	let source = fs::read_to_string("benches/example.glz").unwrap();
+    fs::read_dir("tests")
+        .unwrap()
+        .for_each(|dir| {
+            let dir = dir.unwrap().path().canonicalize().unwrap();
+            let name = dir.file_name().unwrap().to_string_lossy();
 
-    if args.iter().any(|a| a == "tokenize") {
-        g.bench_function("tokenize", |b| b.iter(|| tokenize(black_box(&source))));
-    }
+            let source = fs::read_to_string(
+                format!("{}/style.glz", dir.display())
+            ).unwrap();
 
-    let tokens = tokenize(&source);
+            if args.iter().any(|a| a == "tokenize") {
+                g.bench_function(
+                    format!("tokenize-{}", name),
+                    |b| b.iter(|| tokenize(black_box(&source))),
+                );
+            }
 
-    if args.iter().any(|a| a == "parse") {
-        g.bench_function("parse", |b| b.iter(|| parse(black_box(tokens.clone()))));
-    }
+            let tokens = tokenize(&source);
 
-    let ast = parse(tokens);
+            if args.iter().any(|a| a == "parse") {
+                g.bench_function(
+                    format!("parse-{}", name),
+                    |b| b.iter(|| parse(black_box(tokens.clone()))),
+                );
+            }
 
-    if args.iter().any(|a| a == "generate") {
-         g.bench_function("generate", |b| b.iter(|| {
-            let mut generator = Generator::new();
-            generator.generate(black_box(ast.clone()));
-        }));
-    }
+            let ast = parse(tokens);
+
+            if args.iter().any(|a| a == "generate") {
+                 g.bench_function(
+                    format!("generate-{}", name), 
+                    |b| b.iter(|| {
+                        let mut generator = Generator::new();
+                        generator.generate(black_box(ast.clone()));
+                    }),
+                );
+            }
+        });
 
     g.finish();
 }

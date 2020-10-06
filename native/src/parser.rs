@@ -40,6 +40,13 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 				inner.next().unwrap().as_str().into(),
 			)
 		},
+		Rule::boolean => Expr::Boolean(
+			match token.as_str() {
+				"%t" => true,
+				"%f" => false,
+				_ => unreachable!(),
+			},
+		),
 		Rule::var => Expr::Variable(token.as_str().into()),
 		Rule::interpolation => {
 			/*
@@ -120,7 +127,9 @@ fn parse_expr(token: Pair<Rule>) -> Expr {
 		Rule::op_1 |
 		Rule::op_2 |
 		Rule::op_3 |
-		Rule::op_4 => {
+		Rule::op_4 |
+		Rule::op_5 |
+		Rule::op_6 => {
 			/*
 			 * Operation: <expr> <op_symbol> <expr>
 			 */
@@ -162,7 +171,7 @@ fn parse_line(token: Pair<Rule>) -> Line {
 				parse_expr(inner.next().unwrap()),
 				inner
 					.map(parse_line)
-					.collect()
+					.collect(),
 			)
 		},
 		Rule::ret => {
@@ -171,6 +180,51 @@ fn parse_line(token: Pair<Rule>) -> Line {
 			 */
 			Line::Return(
 				parse_expr(line.into_inner().next().unwrap()),
+			)
+		},
+		Rule::if_stmt => {
+			/*
+			 * If: <expr> <line>+ (<expr> <line>+)* (<else> <line>+)?
+			 */
+			let mut inner = line.into_inner().peekable();
+
+			let cond = parse_expr(inner.next().unwrap());
+			let lines = inner
+				.by_ref()
+				.peeking_take_while(|p| p.as_rule() == Rule::line)
+				.map(parse_line)
+				.collect();
+
+			let mut else_ifs = Vec::<(Expr, Vec<Line>)>::new();
+			let mut next = inner.next();
+			while next.is_some() && next.clone().unwrap().as_rule() != Rule::else_kw {
+				else_ifs.push((
+					parse_expr(next.unwrap()),
+					inner
+						.by_ref()
+						.peeking_take_while(|p| p.as_rule() == Rule::line)
+						.map(parse_line)
+						.collect(),
+				));
+				next = inner.next();
+			}
+
+			let else_lines = 
+				if next.is_some() && next.unwrap().as_rule() == Rule::else_kw {
+					inner
+						.by_ref()
+						.peeking_take_while(|p| p.as_rule() == Rule::line)
+						.map(parse_line)
+						.collect()
+				} else {
+					Vec::new()
+				};
+
+			Line::If(
+				cond,
+				lines,
+				else_ifs,
+				else_lines,
 			)
 		},
 		_ => unreachable!(),

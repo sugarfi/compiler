@@ -120,21 +120,21 @@ impl<'a> Generator {
 			None => panic!("Could not find function {}", name),
 			Some(function) => {
 				// Adds arguments to scope
-				self.stack.push(
-					function.params
-						.iter()
-						.enumerate()
-						.map(
-							|(i, param)| Variable {
-								name: param.to_owned(),
-								expr: args
+				let args = function.params
+					.iter()
+					.enumerate()
+					.map(
+						|(i, param)| Variable {
+							name: param.to_owned(),
+							expr: self.eval_expr(
+								args
 									.get(i)
 									.expect("Not enough arguments")
-									.clone(),
-							}
-						)
-						.collect()
-				);
+							),
+						}
+					)
+					.collect();
+				self.stack.push(args);
 
 				// Executes lines of code
 				for line in &function.lines {
@@ -204,6 +204,28 @@ impl<'a> Generator {
 	}
 
 	/*
+	 * Evaluates an expression into a boolean value
+	 */
+	fn eval_expr_as_bool(&mut self, expr: &Expr) -> bool {
+		match expr {
+			Expr::Boolean(b) => *b,
+			Expr::Number(n) => *n != 0.0,
+			Expr::Dimension(v, _) => *v != 0.0,
+			Expr::String(s) => !s.is_empty(),
+			Expr::Tuple(tup) => !tup.is_empty(),
+			Expr::Array(arr) => !arr.is_empty(),
+			Expr::Object(props) => !props.is_empty(),
+			Expr::Keyword(_) => true,
+			Expr::Hash(_) => true,
+			Expr::Interpolation(_) => panic!("Interpolation cannot be resolved to boolean"),
+			_ => {
+				let expr = self.eval_expr(expr);
+				self.eval_expr_as_bool(&expr)
+			},
+		}
+	}
+
+	/*
 	 * Evaluates a line of code
 	 */
 	fn eval_line(&mut self, line: &Line) {
@@ -237,6 +259,20 @@ impl<'a> Generator {
 			},
 			Line::Return(expr) => {
 				self.ret = Some(self.eval_expr(expr));
+			},
+			Line::If(cond, lines, else_ifs, else_lines) => {
+				if self.eval_expr_as_bool(cond) {
+					lines.iter().for_each(|l| self.eval_line(l));
+				} else {
+					for (cond, lines) in else_ifs {
+						if self.eval_expr_as_bool(cond) {
+							lines.iter().for_each(|l| self.eval_line(l));
+							return;
+						}
+					}
+
+					else_lines.iter().for_each(|l| self.eval_line(l));
+				}
 			},
 		}
 	}
@@ -319,8 +355,26 @@ impl<'a> Generator {
 					a += &b;
 					Expr::String(a)
 				},
+				(Expr::Object(a), Expr::Object(b)) => {
+					let mut a = a;
+					let mut b = b;
+					a.append(&mut b);
+					Expr::Object(a)
+				},
 				_ => panic!("Cannot use ++"),
 			},
+			"==" => Expr::Boolean(a == b),
+			"!=" => Expr::Boolean(a != b),
+			">" => Expr::Boolean(a > b),
+			"<" => Expr::Boolean(a < b),
+			">=" => Expr::Boolean(a >= b),
+			"<=" => Expr::Boolean(a <= b),
+			"and" => Expr::Boolean(
+				self.eval_expr_as_bool(&a) && self.eval_expr_as_bool(&b)
+			),
+			"or" => Expr::Boolean(
+				self.eval_expr_as_bool(&a) || self.eval_expr_as_bool(&b)
+			),
 			_ => unreachable!(),
 		}
 	}
@@ -356,21 +410,21 @@ impl<'a> Generator {
 			None => None,
 			Some(mixin) => {
 				// Adds arguments to scope
-				self.stack.push(
-					mixin.params
-						.iter()
-						.enumerate()
-						.map(
-							|(i, param)| Variable {
-								name: param.to_owned(),
-								expr: args
+				let args = mixin.params
+					.iter()
+					.enumerate()
+					.map(
+						|(i, param)| Variable {
+							name: param.to_owned(),
+							expr: self.eval_expr(
+								args
 									.get(i)
 									.expect("Not enough arguments")
-									.clone(),
-							}
-						)
-						.collect()
-				);
+							),
+						}
+					)
+					.collect();
+				self.stack.push(args);
 
 				// Executes lines of code
 				mixin.lines.iter().for_each(|l| self.eval_line(l));
@@ -468,6 +522,7 @@ impl<'a> Generator {
 			Expr::String(s) => format!("\"{}\"", s),
 			Expr::Hash(h) => format!("#{}", h),
 			Expr::Dimension(v, u) => format!("{}{}", v, u),
+			Expr::Boolean(b) => format!("{}", b),
 			Expr::Interpolation(exprs) => {
 				exprs.iter()
 					.map(|e| {

@@ -33,9 +33,9 @@ There is much more to the Glaze CLI, check out the full API docs [here](https://
 - [ ] Lightweight preprocessing during runtime
 - [ ] Ability to redefine the entire CSS language itself
 - [ ] Linting and error reporting
-- [x] Utility-first workflow encouraged
+- Utility-first workflow encouraged
 - [ ] `!important` is illegal
-- [x] Lightning fast compilation
+- [ ] Lightning fast compilation
 
 ## Example
 
