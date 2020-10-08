@@ -9,10 +9,15 @@ The prelude includes typed definitions for all CSS properties and functions.
 Example of map function
 
 ```glaze
-$arr = 1, 2, 3, 4
+$arr = [1, 2, 3, 4]
+
+addOne(n) :: Number -> Number
+	$n + 1
 
 p
-	custom-prop: map(x -> $x + 1, $arr)
+	custom-prop: map(n -> $n + 1, $arr)
+	# Or alternatively
+	custom-prop: map(addOne, $arr)
 ```
 
 Outputs to

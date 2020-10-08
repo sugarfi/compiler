@@ -6,7 +6,7 @@ Glaze is a functional reactive UI programming language that compiles to CSS and 
 
 Web technologies have always been a pain to work with. However, over the past decade, an abundance of powerful frontend frameworks, programming languages and templating engines have made working with HTML and JavaScript much easier. Yet there has been little development on the CSS side. CSS preprocessors such as SASS provide a lot of useful sugar but don't solve the core issue (CSS itself is flawed and unpredictable). UI toolkits such as Bootstrap are too inflexible and can require so much overriding and customization that you might as well just go back to manual CSS styling. The result of these limitations is that adding styles to your application can often take more effort and frustration than the development of the application itself, no matter what powerful toolkits you may be using.
 
-Glaze hopes to solve these issues. It borrows a lot of concepts from CSS preprocessors while also providing direct support for updates during runtime. Its functional reactive style makes working with UI very declarative and predictable. In addition, its package management system helps make it expansive and utility-first, allowing UI frameworks to be more customizable. Instead of adding a million difficult to override classes to your HTML, you can simply install packages that provide custom CSS properties that can handle anything from fully customizable carousels to grid systems.
+Glaze hopes to solve these issues. It borrows a lot of concepts from CSS preprocessors while also providing direct support for UI updates during runtime. Its functional reactive style makes working with UI very declarative and predictable. In addition, its package management system helps make it expansive and utility-first, allowing UI frameworks to be more customizable. It is also statically typed with linting and error handling built in. Instead of adding a million difficult to override classes to your HTML, you can simply install packages that provide custom CSS properties that can handle anything from customizable carousels to animations to grid systems.
 
 ## Installation
 
@@ -28,13 +28,14 @@ Compile output to the current directory:
 
 `glaze ui/style.glz .`
 
-Learn more about the CLI tool [here](https://glaze.dev/docs).
+Learn more about the CLI tool [here](https://glaze-lang.dev/docs).
 
 ## Features
 
 - Usage with any framework!
 - Feature-rich CSS preprocessing*
 - Easy package management and modularity*
+- Statically typed CSS
 - Fully functional programming style*
 - Reactive UI updates*
 - Ability to redefine the entire CSS language itself*
@@ -53,17 +54,19 @@ The following will make sure all images within the .example class always have a 
 .example
 	img
 		@data
-			pad: 5
+			{ pad: 5
+			}
 
-		padding: &.data.padding ++ px
-		width: &.data.padding * 20px
+		padding: &.data.pad ++ px
+		width: &.data.pad * 20px
 		height: &.width
 
 	button
 		@click
 			& ~ img
 				@data
-					pad: &.data.pad * 2 ++ px
+					{ pad: &.data.pad * 2 ++ px
+					}
 ```
 
 You can then register the above components like so:
@@ -75,7 +78,7 @@ You can then register the above components like so:
 </div>
 ```
 
-There is much more to Glaze, check out the full documentation [here](https://glaze.dev/docs).
+There is quite a bit more to Glaze, check out the full documentation [here](https://glaze-lang.dev/docs).
 
 ## Plugins (Planned)
 
@@ -85,6 +88,4 @@ There is much more to Glaze, check out the full documentation [here](https://gla
 
 ## Packages
 
-Find a full list of available packages [here](https://glaze.dev/packages).
-
-## Support Us
+Find a full list of available packages [here](https://glaze-lang.dev/packages).

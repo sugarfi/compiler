@@ -19,7 +19,8 @@ Note: width can even be set to auto
 ```glaze
 .item
 	@data
-		highlighted: false
+		{ highlighted: false
+		}
 
 	if &.data.highlighted
 		border: 2px solid green
@@ -38,5 +39,6 @@ Note: width can even be set to auto
 		@click
 			~/
 				@data
-					highlighted: not &.data.highlighted
+					{ highlighted: not &.data.highlighted
+					}
 ```

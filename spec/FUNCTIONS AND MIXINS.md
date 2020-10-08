@@ -3,9 +3,8 @@
 ## Function definition
 
 ```glaze
-add :: Number -> Number -> Number
-add(a, b)
-	a + b
+add(a, b) :: Number -> Number -> Number
+	$a + $b
 ```
 
 ## Calling
@@ -20,12 +19,24 @@ p
 Mixins are simply functions that return props.
 
 ```glaze
-color-weight :: Hex -> Number -> Props
-color-weight(c, w)
-	color: c
-	font-weight: w
+color-weight(c, w) :: Hex -> Number -> Props
+	color: $c
+	font-weight: $w
 
 p
 	color-weight(#222, 400)
+	# Or alternatively
 	color-weight: #222 400
+```
+
+## Multiple Dispatch
+
+Functions and mixins support multiple dispatch:
+
+```glaze
+add(a, b) :: Number -> Number -> Number
+	$a + $b
+
+add(a, b) :: String -> String -> String
+	$a ++ $b
 ```
