@@ -1,6 +1,12 @@
-# glaze
+# Glaze
 
-Glaze is an innovative and powerful UI programming language that compiles to CSS and JS. It was created to make UI programming more modular and stress-free by offering a [Stylus](https://github.com/stylus/stylus)-like syntax and package management system while removing the need to write JavaScript for UI-related code.
+Glaze is a functional reactive UI programming language that compiles to CSS and JavaScript. It was created to make web-based UI programming more declarative, modular and stress-free by offering a [Stylus](https://github.com/stylus/stylus)-like syntax, full-featured functional style and package management system. It also offers a set of reactive features that extends the scope of CSS styling far past its current state.
+
+## Why Glaze?
+
+Web technologies have always been a pain to work with. However, over the past decade, an abundance of powerful frontend frameworks, programming languages and templating engines have made working with HTML and JavaScript much easier. Yet there has been little development on the CSS side. CSS preprocessors such as SASS provide a lot of useful sugar but don't solve the core issue (CSS itself is flawed and unpredictable). UI toolkits such as Bootstrap are too inflexible and can require so much overriding and customization that you might as well just go back to manual CSS styling. The result of these limitations is that adding styles to your application can often take more effort and frustration than the development of the application itself, no matter what powerful toolkits you may be using.
+
+Glaze hopes to solve these issues. It borrows a lot of concepts from CSS preprocessors while also providing direct support for updates during runtime. Its functional reactive style makes working with UI very declarative and predictable. In addition, its package management system helps make it expansive and utility-first, allowing UI frameworks to be more customizable. Instead of adding a million difficult to override classes to your HTML, you can simply install packages that provide custom CSS properties that can handle anything from fully customizable carousels to grid systems.
 
 ## Installation
 
@@ -22,20 +28,22 @@ Compile output to the current directory:
 
 `glaze ui/style.glz .`
 
-There is much more to the Glaze CLI, check out the full API docs [here](https://glaze.dev/api/cli).
+Learn more about the CLI tool [here](https://glaze.dev/docs).
 
-## Features (WIP)
+## Features
 
-- [ ] Feature-rich CSS preprocessing
-- [ ] Easy package management and modularity
-- [ ] Event-driven UI updates
-- [ ] Observables and subscriptions
-- [ ] Lightweight preprocessing during runtime
-- [ ] Ability to redefine the entire CSS language itself
-- [ ] Linting and error reporting
+- Usage with any framework!
+- Feature-rich CSS preprocessing*
+- Easy package management and modularity*
+- Fully functional programming style*
+- Reactive UI updates*
+- Ability to redefine the entire CSS language itself*
+- Linting and error reporting*
 - Utility-first workflow encouraged
-- [ ] `!important` is illegal
-- [ ] Lightning fast compilation
+- `!important` is illegal
+- Lightning fast compilation*
+
+\* Not done yet
 
 ## Example
 
@@ -44,39 +52,39 @@ The following will make sure all images within the .example class always have a 
 ```glaze
 .example
 	img
-		data:
-			padding: 5
+		@data
+			pad: 5
 
-		padding: {$.data.padding}px
-		width: {$.data.padding} * 20px
-		height: {$.width}
+		padding: &.data.padding ++ px
+		width: &.data.padding * 20px
+		height: &.width
 
 	button
-		click:
-			$images = |& ~ img|
-			for $img in $images
-				$img.data.padding *= 2
+		@click
+			& ~ img
+				@data
+					pad: &.data.pad * 2 ++ px
 ```
 
 You can then register the above components like so:
 
 ```html
 <div class="example">
-	<img data-padding="5" />
+	<img data-pad="5" />
 	<button>Click Me!</button>
 </div>
 ```
 
 There is much more to Glaze, check out the full documentation [here](https://glaze.dev/docs).
 
-## Running the benchmarks
+## Plugins (Planned)
 
-Criterion, the library being used for benchmarking, will not compile with Neon enabled.
+- [Webpack]()
+- [PostCSS]()
+- [Svelte]()
 
-A fix for this was disabling it via a bench feature.
+## Packages
 
-The benchmarks will only run if you include this feature like so: `cargo bench --features bench`
+Find a full list of available packages [here](https://glaze.dev/packages).
 
-## License
-
-This repository is licensed under GPL 3.0. It should be noted that the GPL license only applies to the code in this repository. This means that you only need to GPL license your code if it is for some reason using source code from the CLI tool or compiler. Any Glaze code you write or compile does not have to be GPL licensed. Any modifications to the CLI tool or compiler, however, are expected to be contributed back to the open source community.
+## Support Us
