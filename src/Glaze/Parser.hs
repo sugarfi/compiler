@@ -5,34 +5,129 @@ import Glaze.AST
 import Control.Applicative (liftA2)
 import Control.Monad
 
+import Data.List.Compat (singleton)
+
 import Text.Parsec.Number
 import Text.ParserCombinators.Parsec
 
-lexeme :: Parser a -> Parser a
-lexeme p = p <* spaces
+(<||>) :: Parser a -> Parser a -> Parser a
+(<||>) a b = try a <|> b
+
+indent :: Int -> Parser String
+indent n = count n tab <||> fmap concat (count n (string "    "))
+
+ws :: Parser String
+ws = many $ oneOf " \t"
+
+nl :: Parser Char
+nl = ws *> newline
+
+parseInput :: Parser [Node]
+parseInput = 
+    many parseRootNode
+    <*
+    eof
+
+-- Nodes
+
+parseRootNode :: Parser Node
+parseRootNode =
+    many nl
+    *>
+    (    
+        parseDefinition 0
+   <||> parseSelector 0
+   <||> parseFunction
+    )
+
+parseNested :: Int -> Parser Node
+parseNested n = parseDefinition n
+           <||> parseProp n
+
+parseSelector :: Int -> Parser Node
+parseSelector n =
+    NodeSelector <$> selector
+    where
+        selector = do
+            indent n
+            sels <- sel `sepBy` (char ',')
+            nl
+            nodes <- many (parseNested (n + 1) <||> parseSelector (n + 1))
+            return (sels, nodes)
+            where
+                sel =
+                    fmap unwords
+                    (fmap concat bit `sepBy` ws)
+                    where
+                        bit =
+                            many1
+                            (
+                                rawSymbol
+                           <||> fmap singleton (oneOf ".#:&/")
+                            )
+
+parseFunction :: Parser Node
+parseFunction =
+    NodeFunction <$> function
+    where
+        function = do
+            name <- rawSymbol
+            char '('
+            params <- (spaces *> rawSymbol) `sepBy` (spaces *> char ',')
+            spaces *> char ')'
+            nl
+            nodes <- many $ parseNested 1
+            return (name, params, nodes)
+
+parseDefinition :: Int -> Parser Node
+parseDefinition n =
+    NodeDefinition <$> definition
+    where
+        definition = do
+            indent n
+            char '$'
+            name <- rawSymbol
+            spaces *> char '='
+            value <- spaces *> parseExpr
+            nl
+            return (name, value)
+
+parseProp :: Int -> Parser Node
+parseProp n =
+    NodeProp <$> (rawCall <||> prop)
+    where
+        prop = do
+            indent n
+            name <- rawSymbol
+            spaces *> char ':'
+            args <- spaces *> (parseExpr `sepBy` ws)
+            nl
+            return (name, args)
+
+-- Expressions
 
 parseExpr :: Parser Expr
-parseExpr =  parseBool
-         <|> parseString
-         <|> parseHex
-         <|> parseDimension
-         <|> parseNumber
-         <|> parseVariable
-         <|> parseCall
-         <|> parseSymbol
-         <|> parseTuple
-         <|> parseList
-         <|> parseRecord
+parseExpr = parseBool
+       <||> parseString
+       <||> parseHex
+       <||> parseDimension
+       <||> parseNumber
+       <||> parseVariable
+       <||> parseCall
+       <||> parseSymbol
+       <||> parseTuple
+       <||> parseList
+       <||> parseRecord
 
 parseNumber :: Parser Expr
-parseNumber = lexeme $ ExprNumber <$> rawNumber
+parseNumber = ExprNumber <$> rawNumber
 
 rawNumber :: Parser Float
 rawNumber = ap sign $ floating3 True
 
 parseString :: Parser Expr
 parseString =
-    lexeme $ ExprString <$> string
+    ExprString <$> string
     where
         string =
             char '"'
@@ -43,13 +138,13 @@ parseString =
 
 parseBool :: Parser Expr
 parseBool = 
-    lexeme $ ExprBool <$> (true <|> false) <* notFollowedBy alphaNum
+    ExprBool <$> (true <|> false) <* notFollowedBy alphaNum
     where
         true  = (string "true")  *> (pure True)
         false = (string "false") *> (pure False)
 
 parseSymbol :: Parser Expr
-parseSymbol = lexeme $ ExprSymbol <$> rawSymbol
+parseSymbol = ExprSymbol <$> rawSymbol
 
 rawSymbol :: Parser String
 rawSymbol =
@@ -59,16 +154,22 @@ rawSymbol =
 
 parseHex :: Parser Expr
 parseHex =
-    lexeme $ ExprHex <$> hex
+    ExprHex <$> hex
     where
         hex =
             char '#'
             *>
-            many1 hexDigit
+            digits 6
+            where
+                digits 1 = count 1 hexDigit
+                digits n = 
+                    count n hexDigit
+                    <||>
+                    digits (n - 1)
 
 parseDimension :: Parser Expr
 parseDimension =
-    try $ lexeme $ ExprDimension <$> dimension
+    ExprDimension <$> dimension
     where
         dimension = do
             v <- rawNumber
@@ -76,47 +177,46 @@ parseDimension =
             return (v, u)
 
 parseTuple :: Parser Expr
-parseTuple = lexeme $ ExprTuple <$> rawTuple
+parseTuple = ExprTuple <$> rawTuple
 
 rawTuple :: Parser [Expr]
 rawTuple =
-    (lexeme $ char '(')
+    char '('
     *>
-    (parseExpr `sepBy` (lexeme $ char ','))
+    ((spaces *> parseExpr) `sepBy` (spaces *> char ','))
     <*
-    (lexeme $ char ')')
+    spaces <* char ')'
 
 parseList :: Parser Expr
 parseList =
-    lexeme $ ExprList <$> list
+    ExprList <$> list
     where
         list =
-            (lexeme $ char '[')
+            char '['
             *>
-            (parseExpr `sepBy` (lexeme $ char ','))
+            ((spaces *> parseExpr) `sepBy` (spaces *> char ','))
             <*
-            (lexeme $ char ']')
+            spaces <* char ']'
 
 parseRecord :: Parser Expr
 parseRecord =
-    lexeme $ ExprRecord <$> record
+    ExprRecord <$> record
     where
         record =
-            (lexeme $ char '{')
-            *>
-            (entry `sepBy` (lexeme $ char ','))
+            char '{' *>
+            ((spaces *> entry) `sepBy` (spaces *> char ','))
             <*
-            (lexeme $ char '}')
+            spaces <* char '}'
             where
                 entry = do
-                    key <- lexeme $ rawSymbol
-                    (lexeme $ char ':')
-                    value <- parseExpr
+                    key <- rawSymbol
+                    spaces *> char ':'
+                    value <- spaces *> parseExpr
                     return (key, value)
 
 parseVariable :: Parser Expr
 parseVariable =
-    lexeme $ ExprVariable <$> variable
+    ExprVariable <$> variable
     where
         variable =
             char '$'
@@ -125,9 +225,10 @@ parseVariable =
 
 parseCall :: Parser Expr
 parseCall =
-    try $ lexeme $ ExprFunction <$> function
-    where
-        function = do
-            name <- rawSymbol
-            args <- rawTuple
-            return (name, args)
+    ExprFunction <$> rawCall
+
+rawCall :: Parser (String, [Expr])
+rawCall = do
+    name <- rawSymbol
+    args <- rawTuple
+    return (name, args)

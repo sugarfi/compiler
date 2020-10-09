@@ -16,6 +16,7 @@ executable glaze
   other-modules:       Glaze.AST
                      , Glaze.Parser
   build-depends:       base >=4.11 && <4.12
+                     , base-compat
                      , parsec >=3.0
                      , parsec3-numbers
   hs-source-dirs:      src

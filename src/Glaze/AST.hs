@@ -24,9 +24,12 @@ data Expr = ExprNumber Float
           | ExprRecord [(String, Expr)]
           | ExprVariable String
           | ExprFunction (String, [Expr])
+          | ExprUnaryOp (String, Expr)
+          | ExprBinaryOp (String, Expr, Expr)
           deriving (Show)
 
--- data Node = NodeSelector ([String], [Node])
---           | NodeFunction (String, [String], [Node], TypeFunction)
---           | NodeDefinition (String, Expr)
---           | NodeProp (String, [Expr])
+data Node = NodeSelector ([String], [Node])
+          | NodeFunction (String, [String], [Node]) -- , [Type])
+          | NodeDefinition (String, Expr) -- , Type)
+          | NodeProp (String, [Expr])
+          deriving (Show)
