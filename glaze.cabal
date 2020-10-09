@@ -14,9 +14,12 @@ cabal-version:       >=1.10
 executable glaze
   main-is:             Glaze.hs
   other-modules:       Glaze.AST
+                     , Glaze.Compiler
+                     , Glaze.Generator
                      , Glaze.Parser
   build-depends:       base >=4.11 && <4.12
                      , base-compat
+                     , utility-ht
                      , parsec >=3.0
                      , parsec3-numbers
   hs-source-dirs:      src

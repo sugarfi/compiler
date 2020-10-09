@@ -2,6 +2,8 @@ module Glaze where
 
 import Glaze.AST
 import Glaze.Parser
+import Glaze.Generator
+import Glaze.Compiler
 
 import Text.ParserCombinators.Parsec
 
@@ -12,8 +14,7 @@ parseFile file = do
         Left e  -> print e >> fail "parse error"
         Right r -> return r
 
-parseStr :: String -> Expr
-parseStr str =
-    case parse parseExpr "" str of
-        Left e  -> error $ show e
-        Right r -> r
+compileFile :: String -> IO ()
+compileFile file = do
+    nodes <- parseFile file
+    writeFile "example.css" $ compile $ generate nodes

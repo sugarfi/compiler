@@ -1,11 +1,13 @@
 module Glaze.AST where
 
+-- Glaze
+
 data Type = TypeNumber
           | TypeString
           | TypeBool
           | TypeHex
           | TypeDimension
-          | TypeEnum
+          | TypeEnum String
           | TypeTuple [Type]
           | TypeList Type
           | TypeRecord [(String, Type)]
@@ -29,7 +31,14 @@ data Expr = ExprNumber Float
           deriving (Show)
 
 data Node = NodeSelector ([String], [Node])
-          | NodeFunction (String, [String], [Node]) -- , [Type])
-          | NodeDefinition (String, Expr) -- , Type)
+          | NodeFunction (String, [String], [Node], [String])
+          | NodeDefinition (String, Expr)
           | NodeProp (String, [Expr])
           deriving (Show)
+
+-- CSS
+
+data CSSNode = CSSSelector ([String], [(String, String)])
+             deriving (Show)
+
+-- JavaScript

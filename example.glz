@@ -1,0 +1,13 @@
+.class,
+.class-2
+	p
+		color: blue
+	span,
+	em
+		color: #111
+		a
+			color: lightblue
+			border: 1px solid black
+	strong
+		font-weight: bold
+		color: orange

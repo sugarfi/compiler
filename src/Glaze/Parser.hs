@@ -3,7 +3,7 @@ module Glaze.Parser where
 import Glaze.AST
 
 import Control.Applicative (liftA2)
-import Control.Monad
+import Control.Monad (ap)
 
 import Data.List.Compat (singleton)
 
@@ -50,7 +50,7 @@ parseSelector n =
     where
         selector = do
             indent n
-            sels <- sel `sepBy` (char ',')
+            sels <- sel `sepBy` (ws *> char ',' <* spaces)
             nl
             nodes <- many (parseNested (n + 1) <||> parseSelector (n + 1))
             return (sels, nodes)
@@ -60,11 +60,9 @@ parseSelector n =
                     (fmap concat bit `sepBy` ws)
                     where
                         bit =
-                            many1
-                            (
-                                rawSymbol
-                           <||> fmap singleton (oneOf ".#:&/")
-                            )
+                            many1 ( rawSymbol
+                               <||> fmap singleton (oneOf ".#:&/")
+                                  )
 
 parseFunction :: Parser Node
 parseFunction =
@@ -75,9 +73,11 @@ parseFunction =
             char '('
             params <- (spaces *> rawSymbol) `sepBy` (spaces *> char ',')
             spaces *> char ')'
+            ws *> string "::"
+            types <- ((ws *> rawSymbol) `sepBy` (ws *> string "->"))
             nl
             nodes <- many $ parseNested 1
-            return (name, params, nodes)
+            return (name, params, nodes, types)
 
 parseDefinition :: Int -> Parser Node
 parseDefinition n =
