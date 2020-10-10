@@ -16,15 +16,15 @@ isProp _ = False
 -- Generation
 
 generate :: [Node] -> [CSSNode]
-generate nodes = concat $ map generateRootNode nodes
+generate = concatMap generateRootNode
 
 generateRootNode :: Node -> [CSSNode]
 generateRootNode (NodeSelector (sels, nodes)) =
     let
         props = map generateProp (filter isProp nodes)
-        children = concat $ map (generateNestedSelector sels) (filter isSelector nodes)
+        children = concatMap (generateNestedSelector sels) (filter isSelector nodes)
     in
-    [CSSSelector (sels, props)] ++ children
+    CSSSelector (sels, props) : children
 -- generateRootNode (NodeFunction name args nodes types) =
 -- generateRootNode (NodeDefinition name value) =
 
@@ -33,16 +33,16 @@ generateNestedSelector parentSels (NodeSelector (sels, nodes)) =
     let
         nestedSels = map concatWithSpace $ combine parentSels sels
         props = map generateProp (filter isProp nodes)
-        children = concat $ map (generateNestedSelector nestedSels) (filter isSelector nodes)
+        children = concatMap (generateNestedSelector nestedSels) (filter isSelector nodes)
     in
-    [CSSSelector (nestedSels, props)] ++ children
+    CSSSelector (nestedSels, props) : children
     where
         concatWithSpace (a, b) = a ++ " " ++ b
 
 generateProp :: Node -> (String, String)
 generateProp (NodeProp (name, args)) =
     let
-        value = intercalate " " $ map exprToString args
+        value = unwords $ map exprToString args
     in
     (name, value)
 
@@ -83,8 +83,8 @@ exprToString (ExprNumber n) = if isInt n then show $ round n else show n
 exprToString (ExprBool b) = if b then "true" else "false"
 exprToString (ExprSymbol s) = s
 exprToString (ExprHex h) = "#" ++ h
-exprToString (ExprDimension (v, u)) = (exprToString $ ExprNumber v) ++ u
-exprToString (ExprTuple t) = intercalate " " $ map (exprToString . evalExpr) t
+exprToString (ExprDimension (v, u)) = exprToString (ExprNumber v) ++ u
+exprToString (ExprTuple t) = unwords $ map (exprToString . evalExpr) t
 exprToString (ExprList l) = intercalate ", " $ map (exprToString . evalExpr) l
 exprToString (ExprRecord _) = "record" -- temp
 exprToString expr = exprToString $ evalExpr expr

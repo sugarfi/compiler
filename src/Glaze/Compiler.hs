@@ -6,16 +6,13 @@ import Data.List (intercalate)
 
 compile :: [CSSNode] -> String
 compile nodes =
-    ( intercalate "\n\n" $ 
-      filter (\x -> length x > 0) $ 
-      map compileNode nodes
-    )
+    intercalate "\n\n" (filter (not . null) $ map compileNode nodes)
     ++ "\n"
 
 compileNode :: CSSNode -> String
 compileNode (CSSSelector (sels, props)) =
-    if length props > 0 then
-        intercalate ",\n" sels ++ " {\n" ++ (concat $ map compileProp props) ++ "}"
+    if not (null props) then
+        intercalate ",\n" sels ++ " {\n" ++ concatMap compileProp props ++ "}"
     else
         ""
     where

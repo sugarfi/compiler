@@ -68,7 +68,7 @@ parseFunction =
             params <- (spaces *> rawSymbol) `sepBy` (spaces *> char ',')
             spaces *> char ')'
             ws *> string "::"
-            types <- ((ws *> rawSymbol) `sepBy` (ws *> string "->"))
+            types <- (ws *> rawSymbol) `sepBy` (ws *> string "->")
             nl
             nodes <- many $ parseNested 1
             return (name, params, nodes, types)
@@ -131,7 +131,7 @@ parseString =
         string =
             char '"'
             *>
-            (many $ noneOf ['"'])
+            many (noneOf ['"'])
             <*
             char '"'
 
@@ -139,8 +139,8 @@ parseBool :: Parser Expr
 parseBool = 
     ExprBool <$> (true <|> false) <* notFollowedBy alphaNum
     where
-        true  = (string "true")  *> (pure True)
-        false = (string "false") *> (pure False)
+        true  = string "true"  *> pure True
+        false = string "false" *> pure False
 
 parseSymbol :: Parser Expr
 parseSymbol = ExprSymbol <$> rawSymbol

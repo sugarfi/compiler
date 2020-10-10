@@ -5,6 +5,7 @@
 	span,
 	em
 		color: #111
+		boolean: not (true and false)
 		font-weight: 200 + 400 - 4 * 5
 		a
 			color: lightblue

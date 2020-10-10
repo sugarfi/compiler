@@ -8,6 +8,7 @@
 .class-2 span,
 .class-2 em {
 	color: #111;
+	boolean: true;
 	font-weight: 580;
 }
 
