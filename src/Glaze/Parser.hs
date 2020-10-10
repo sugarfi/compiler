@@ -101,7 +101,7 @@ parseProp n =
 -- Expressions
 
 parseExpr :: Parser Expr
-parseExpr = parseBinaryOp
+parseExpr = parseBinaryOp 0
        <||> parseNonBinary
 
 parseNonBinary :: Parser Expr
@@ -230,25 +230,35 @@ rawCall = do
 
 -- Operations
 
-parseBinaryOp :: Parser Expr
-parseBinaryOp =
-    ExprBinaryOp <$> binary
+binaryOps = [ keyword "and" <||> keyword "or"
+            , single "+" <||> single "-"
+            , single "*" <||> single "/"
+            ]
+            where
+                keyword :: String -> Parser String
+                keyword a = many1 space *> string a <* many1 space
+
+                single :: String -> Parser String
+                single a = spaces *> string a <* spaces
+
+parseBinaryOp :: Int -> Parser Expr
+parseBinaryOp prec =
+    if prec < length binaryOps - 1 then
+        (ExprBinaryOp <$> binary) <||> parseBinaryOp (prec + 1)
+    else
+        ExprBinaryOp <$> binary
     where
         binary = do
-            a  <- parseNonBinary
-            op <- symbol
-            b  <- spaces *> parseExpr
+            a  <- tryAll (prec + 1)
+            op <- binaryOps !! prec
+            b  <- tryAll prec
             return (op, a, b)
             where
-                symbol = (many1 space *> string "and" <* many1 space)
-                    <||> (many1 space *> string "or"  <* many1 space)
-                    <||> ( spaces *> fmap singleton
-                           ( char '+'
-                         <|> char '-'
-                         <|> char '*'
-                         <|> char '/'
-                           )
-                         )
+                tryAll n =
+                    if n < length binaryOps then
+                        parseBinaryOp n <||> tryAll (n + 1)
+                    else
+                        parseNonBinary
 
 parseUnaryOp :: Parser Expr
 parseUnaryOp =
@@ -256,7 +266,7 @@ parseUnaryOp =
     where
         unary = do
             op <- symbol
-            a <- spaces *> parseExpr
+            a <- parseExpr
             return (op, a)
             where
                 symbol = string "not" <* many1 space

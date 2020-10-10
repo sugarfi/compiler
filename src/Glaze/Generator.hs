@@ -54,10 +54,10 @@ evalExpr (ExprTuple t) =
         let (x:_) = t in evalExpr x
     else
         ExprTuple t
--- evalExpr (ExprVariable name) =
--- evalExpr (ExprFunction (name, args)) =
 evalExpr (ExprBinaryOp (op, a, b)) = evalBinaryOp op (evalExpr a) (evalExpr b)
 evalExpr (ExprUnaryOp (op, a)) = evalUnaryOp op (evalExpr a)
+-- evalExpr (ExprVariable name) =
+-- evalExpr (ExprFunction (name, args)) =
 evalExpr expr = expr
 
 evalBinaryOp :: String -> Expr -> Expr -> Expr

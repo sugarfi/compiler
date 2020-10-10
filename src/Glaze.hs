@@ -17,4 +17,5 @@ parseFile file = do
 main :: IO ()
 main = do
     nodes <- parseFile "example.glz"
+    print nodes
     writeFile "example.css" $ compile $ generate nodes

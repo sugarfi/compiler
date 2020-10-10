@@ -5,10 +5,11 @@
 	span,
 	em
 		color: #111
-		font-weight: 200 + 400
+		font-weight: 200 + 400 - 4 * 5
 		a
 			color: lightblue
+			font-weight: 2 * (200 + 3) * 100
 			border: 1px solid black
 	strong
-		font-weight: 2 * 200
+		font-weight: 2 * 200 + 3 * 100
 		color: orange
