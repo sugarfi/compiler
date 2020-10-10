@@ -17,6 +17,7 @@ executable glaze
                      , Glaze.Compiler
                      , Glaze.Generator
                      , Glaze.Parser
+                     , Glaze.Util
   build-depends:       base >=4.11 && <4.12
                      , base-compat
                      , utility-ht

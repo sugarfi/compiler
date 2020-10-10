@@ -23,26 +23,20 @@ nl :: Parser Char
 nl = ws *> newline
 
 parseInput :: Parser [Node]
-parseInput = 
-    many parseRootNode
-    <*
-    eof
+parseInput = many parseRootNode <* eof
 
 -- Nodes
 
 parseRootNode :: Parser Node
 parseRootNode =
-    many nl
-    *>
-    (    
-        parseDefinition 0
-   <||> parseSelector 0
-   <||> parseFunction
-    )
+    many nl *> ( parseDefinition 0
+            <||> parseSelector   0
+            <||> parseFunction
+               )
 
 parseNested :: Int -> Parser Node
 parseNested n = parseDefinition n
-           <||> parseProp n
+           <||> parseProp       n
 
 parseSelector :: Int -> Parser Node
 parseSelector n =
@@ -107,17 +101,22 @@ parseProp n =
 -- Expressions
 
 parseExpr :: Parser Expr
-parseExpr = parseBool
-       <||> parseString
-       <||> parseHex
-       <||> parseDimension
-       <||> parseNumber
-       <||> parseVariable
-       <||> parseCall
-       <||> parseSymbol
-       <||> parseTuple
-       <||> parseList
-       <||> parseRecord
+parseExpr = parseBinaryOp
+       <||> parseNonBinary
+
+parseNonBinary :: Parser Expr
+parseNonBinary = parseUnaryOp
+            <||> parseBool
+            <||> parseString
+            <||> parseHex
+            <||> parseDimension
+            <||> parseNumber
+            <||> parseVariable
+            <||> parseCall
+            <||> parseSymbol
+            <||> parseTuple
+            <||> parseList
+            <||> parseRecord
 
 parseNumber :: Parser Expr
 parseNumber = ExprNumber <$> rawNumber
@@ -157,9 +156,7 @@ parseHex =
     ExprHex <$> hex
     where
         hex =
-            char '#'
-            *>
-            digits 6
+            char '#' *> digits 6
             where
                 digits 1 = count 1 hexDigit
                 digits n = 
@@ -203,7 +200,8 @@ parseRecord =
     ExprRecord <$> record
     where
         record =
-            char '{' *>
+            char '{'
+            *>
             ((spaces *> entry) `sepBy` (spaces *> char ','))
             <*
             spaces <* char '}'
@@ -218,10 +216,7 @@ parseVariable :: Parser Expr
 parseVariable =
     ExprVariable <$> variable
     where
-        variable =
-            char '$'
-            *>
-            rawSymbol
+        variable = char '$' *> rawSymbol
 
 parseCall :: Parser Expr
 parseCall =
@@ -232,3 +227,36 @@ rawCall = do
     name <- rawSymbol
     args <- rawTuple
     return (name, args)
+
+-- Operations
+
+parseBinaryOp :: Parser Expr
+parseBinaryOp =
+    ExprBinaryOp <$> binary
+    where
+        binary = do
+            a  <- parseNonBinary
+            op <- symbol
+            b  <- spaces *> parseExpr
+            return (op, a, b)
+            where
+                symbol = (many1 space *> string "and" <* many1 space)
+                    <||> (many1 space *> string "or"  <* many1 space)
+                    <||> ( spaces *> fmap singleton
+                           ( char '+'
+                         <|> char '-'
+                         <|> char '*'
+                         <|> char '/'
+                           )
+                         )
+
+parseUnaryOp :: Parser Expr
+parseUnaryOp =
+    ExprUnaryOp <$> unary
+    where
+        unary = do
+            op <- symbol
+            a <- spaces *> parseExpr
+            return (op, a)
+            where
+                symbol = string "not" <* many1 space

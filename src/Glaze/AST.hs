@@ -26,8 +26,8 @@ data Expr = ExprNumber Float
           | ExprRecord [(String, Expr)]
           | ExprVariable String
           | ExprFunction (String, [Expr])
-          | ExprUnaryOp (String, Expr)
           | ExprBinaryOp (String, Expr, Expr)
+          | ExprUnaryOp (String, Expr)
           deriving (Show)
 
 data Node = NodeSelector ([String], [Node])

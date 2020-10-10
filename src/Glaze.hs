@@ -1,4 +1,4 @@
-module Glaze where
+module Main where
 
 import Glaze.AST
 import Glaze.Parser
@@ -14,7 +14,7 @@ parseFile file = do
         Left e  -> print e >> fail "parse error"
         Right r -> return r
 
-compileFile :: String -> IO ()
-compileFile file = do
-    nodes <- parseFile file
+main :: IO ()
+main = do
+    nodes <- parseFile "example.glz"
     writeFile "example.css" $ compile $ generate nodes

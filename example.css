@@ -8,6 +8,8 @@
 .class-2 span,
 .class-2 em {
 	color: #111;
+	font-weight: 600;
+	boolean: true;
 }
 
 .class span a,
@@ -15,11 +17,11 @@
 .class-2 span a,
 .class-2 em a {
 	color: lightblue;
-	border: 1.0px solid black;
+	border: 1px solid black;
 }
 
 .class strong,
 .class-2 strong {
-	font-weight: bold;
+	font-weight: 400;
 	color: orange;
 }

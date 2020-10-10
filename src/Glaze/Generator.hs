@@ -1,8 +1,8 @@
 module Glaze.Generator where
 
 import Glaze.AST
+import Glaze.Util
 
-import Control.Applicative (liftA2)
 import Data.List (intercalate)
 
 isSelector :: Node -> Bool
@@ -31,7 +31,7 @@ generateRootNode (NodeSelector (sels, nodes)) =
 generateNestedSelector :: [String] -> Node -> [CSSNode]
 generateNestedSelector parentSels (NodeSelector (sels, nodes)) =
     let
-        nestedSels = map concatWithSpace $ liftA2 (,) parentSels sels
+        nestedSels = map concatWithSpace $ combine parentSels sels
         props = map generateProp (filter isProp nodes)
         children = concat $ map (generateNestedSelector nestedSels) (filter isSelector nodes)
     in
@@ -49,18 +49,41 @@ generateProp (NodeProp (name, args)) =
 -- Evaluation
 
 evalExpr :: Expr -> Expr
+evalExpr (ExprTuple t) =
+    if length t == 1 then
+        let (x:_) = t in evalExpr x
+    else
+        ExprTuple t
 -- evalExpr (ExprVariable name) =
 -- evalExpr (ExprFunction (name, args)) =
--- evalExpr (ExprUnaryOp (op, a)) =
--- evalExpr (ExprBinaryOp (op, a, b)) =
+evalExpr (ExprBinaryOp (op, a, b)) = evalBinaryOp op (evalExpr a) (evalExpr b)
+evalExpr (ExprUnaryOp (op, a)) = evalUnaryOp op (evalExpr a)
 evalExpr expr = expr
 
+evalBinaryOp :: String -> Expr -> Expr -> Expr
+evalBinaryOp "and" (ExprBool a) (ExprBool b) = ExprBool (a && b)
+evalBinaryOp "and" _ _ = error "Cannot use and"
+evalBinaryOp "or" (ExprBool a) (ExprBool b) = ExprBool (a || b)
+evalBinaryOp "or" _ _ = error "Cannot use or"
+evalBinaryOp "+" (ExprNumber a) (ExprNumber b) = ExprNumber (a + b)
+evalBinaryOp "+" _ _ = error "Cannot use +"
+evalBinaryOp "-" (ExprNumber a) (ExprNumber b) = ExprNumber (a - b)
+evalBinaryOp "-" _ _ = error "Cannot use -"
+evalBinaryOp "*" (ExprNumber a) (ExprNumber b) = ExprNumber (a * b)
+evalBinaryOp "*" _ _ = error "Cannot use *"
+evalBinaryOp "/" (ExprNumber a) (ExprNumber b) = ExprNumber (a / b)
+evalBinaryOp "/" _ _ = error "Cannot use /"
+
+evalUnaryOp :: String -> Expr -> Expr
+evalUnaryOp "not" (ExprBool a) = ExprBool (not a)
+evalUnaryOp "not" _ = error "Cannot use not"
+
 exprToString :: Expr -> String
-exprToString (ExprNumber n) = show n
-exprToString (ExprBool b) = show b
+exprToString (ExprNumber n) = if isInt n then show $ round n else show n
+exprToString (ExprBool b) = if b then "true" else "false"
 exprToString (ExprSymbol s) = s
 exprToString (ExprHex h) = "#" ++ h
-exprToString (ExprDimension (v, u)) = (show v) ++ u
+exprToString (ExprDimension (v, u)) = (exprToString $ ExprNumber v) ++ u
 exprToString (ExprTuple t) = intercalate " " $ map (exprToString . evalExpr) t
 exprToString (ExprList l) = intercalate ", " $ map (exprToString . evalExpr) l
 exprToString (ExprRecord _) = "record" -- temp
