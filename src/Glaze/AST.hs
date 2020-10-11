@@ -34,6 +34,7 @@ data Node = NodeSelector ([String], [Node])
           | NodeFunction (String, [String], [Node], [String])
           | NodeDefinition (String, Expr)
           | NodeProp (String, [Expr])
+          | NodeExpr Expr
           deriving (Show)
 
 -- CSS

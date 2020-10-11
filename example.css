@@ -9,7 +9,7 @@
 .class-2 em {
 	color: #111;
 	boolean: true;
-	font-weight: 580;
+	font-weight: 400, 100;
 }
 
 .class span a,
@@ -23,6 +23,6 @@
 
 .class strong,
 .class-2 strong {
-	font-weight: 700;
+	font-weight: 700 20;
 	color: orange;
 }

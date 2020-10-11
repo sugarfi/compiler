@@ -5,6 +5,7 @@ import Glaze.AST
 import Control.Applicative (liftA2)
 import Control.Monad (ap)
 
+import Data.Functor (($>))
 import Data.List.Compat (singleton)
 
 import Text.Parsec.Number
@@ -70,7 +71,7 @@ parseFunction =
             ws *> string "::"
             types <- (ws *> rawSymbol) `sepBy` (ws *> string "->")
             nl
-            nodes <- many $ parseNested 1
+            nodes <- many (parseNested 1 <||> (indent 1 *> (NodeExpr <$> parseExpr)))
             return (name, params, nodes, types)
 
 parseDefinition :: Int -> Parser Node
@@ -139,8 +140,8 @@ parseBool :: Parser Expr
 parseBool = 
     ExprBool <$> (true <|> false) <* notFollowedBy alphaNum
     where
-        true  = string "true"  *> pure True
-        false = string "false" *> pure False
+        true  = string "true"  $> True
+        false = string "false" $> False
 
 parseSymbol :: Parser Expr
 parseSymbol = ExprSymbol <$> rawSymbol

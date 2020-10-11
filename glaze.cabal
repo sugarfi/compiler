@@ -21,6 +21,7 @@ executable glaze
   build-depends:       base >=4.11 && <4.12
                      , base-compat
                      , utility-ht
+                     , mtl
                      , parsec >=3.0
                      , parsec3-numbers
   hs-source-dirs:      src

@@ -1,3 +1,6 @@
+add(a, b) :: Int -> Int -> Int
+	$a + $b
+
 .class,
 .class-2
 	p
@@ -6,11 +9,11 @@
 	em
 		color: #111
 		boolean: not (true and false)
-		font-weight: 200 + 400 - 4 * 5
+		font-weight: [400, add(70, 30)]
 		a
 			color: lightblue
 			font-weight: 2 * (200 + 3) * 100
 			border: 1px solid black
 	strong
-		font-weight: 2 * 200 + 3 * 100
+		font-weight: (2 * 200 + 3 * 100, 20)
 		color: orange
