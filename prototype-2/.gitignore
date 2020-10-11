@@ -2,3 +2,5 @@
 /.cabal-sandbox
 
 cabal.sandbox.config
+example.css
+example.js

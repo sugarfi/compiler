@@ -11,6 +11,9 @@ add(a, b) :: Int -> Int -> Int
 		boolean: not (true and false)
 		font-weight: [400, add(70, 30)]
 		a
+			@click
+				&
+					color: blue
 			color: lightblue
 			font-weight: 2 * (200 + 3) * 100
 			border: 1px solid black

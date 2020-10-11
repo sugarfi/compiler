@@ -37,7 +37,10 @@ parseRootNode =
 
 parseNested :: Int -> Parser Node
 parseNested n = parseDefinition n
+           <||> parseSelector   n
            <||> parseProp       n
+           <||> parseAtRule     n
+           <||> parseExprNode   n
 
 parseSelector :: Int -> Parser Node
 parseSelector n =
@@ -47,7 +50,7 @@ parseSelector n =
             indent n
             sels <- sel `sepBy` (ws *> char ',' <* spaces)
             nl
-            nodes <- many (parseNested (n + 1) <||> parseSelector (n + 1))
+            nodes <- many (parseNested (n + 1))
             return (sels, nodes)
             where
                 sel =
@@ -71,7 +74,7 @@ parseFunction =
             ws *> string "::"
             types <- (ws *> rawSymbol) `sepBy` (ws *> string "->")
             nl
-            nodes <- many (parseNested 1 <||> (indent 1 *> (NodeExpr <$> parseExpr)))
+            nodes <- many (parseNested 1)
             return (name, params, nodes, types)
 
 parseDefinition :: Int -> Parser Node
@@ -98,6 +101,21 @@ parseProp n =
             args <- spaces *> (parseExpr `sepBy` ws)
             nl
             return (name, args)
+
+parseAtRule :: Int -> Parser Node
+parseAtRule n =
+    NodeAtRule <$> atrule
+    where
+        atrule = do
+            indent n
+            char '@'
+            rule <- rawSymbol
+            nl
+            nodes <- many (parseNested (n + 1))
+            return (rule, nodes)
+
+parseExprNode :: Int -> Parser Node
+parseExprNode n = NodeExpr <$> (indent n *> parseExpr)
 
 -- Expressions
 
@@ -137,7 +155,7 @@ parseString =
             char '"'
 
 parseBool :: Parser Expr
-parseBool = 
+parseBool =
     ExprBool <$> (true <|> false) <* notFollowedBy alphaNum
     where
         true  = string "true"  $> True

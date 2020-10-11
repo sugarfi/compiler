@@ -18,4 +18,9 @@ main :: IO ()
 main = do
     nodes <- parseFile "example.glz"
     print nodes
-    writeFile "example.css" $ compile $ generate nodes
+    let (css, js) = generate nodes
+    print css
+    print js
+    let (csso, jso) = compile (css, js)
+    writeFile "example.css" csso
+    writeFile "example.js"  jso

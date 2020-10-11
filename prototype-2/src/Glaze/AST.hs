@@ -34,6 +34,7 @@ data Node = NodeSelector ([String], [Node])
           | NodeFunction (String, [String], [Node], [String])
           | NodeDefinition (String, Expr)
           | NodeProp (String, [Expr])
+          | NodeAtRule (String, [Node])
           | NodeExpr Expr
           deriving (Show)
 
@@ -43,3 +44,8 @@ data CSSNode = CSSSelector ([String], [(String, String)])
              deriving (Show)
 
 -- JavaScript
+
+data JSNode = JSEvent ([String], String, [(String, String)])
+            | JSObserver (String, String, [JSNode])
+            | JSDataAttr (String)
+            deriving (Show)
