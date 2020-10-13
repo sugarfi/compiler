@@ -1,0 +1,6 @@
+"hello" 3.0 * 2 true #aff truffle
+(3,)
+[ 1, 2 , 3, 4 / 2, 5 ]
+{ nice: "cool", hm: huh, sweet: bro , neet : whoa }
+my_func(3.0, {}, cool, "stuff")
+[$var[1], 1, 2, 3, [4, 5, 6], 7, 8, 9]

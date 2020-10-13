@@ -1,9 +1,0 @@
-native/target
-native/index.node
-native/artifacts.json
-native/src/tests.rs
-/example
-**/*~
-**/node_modules
-**/.DS_Store
-*.log
