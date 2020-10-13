@@ -34,13 +34,121 @@
 mod lexer;
 
 use crate::error::throw_error;
-use crate::ast::Expr;
+use crate::ast::*;
 use lexer::Lexer;
 use std::process::exit;
 use fnv::FnvHashMap;
 
 fn unexpected(lexer: &Lexer) {
-	throw_error(&format!("Unexpected symbol: {}", lexer.char_at(0)), lexer.position());
+	throw_error(&format!("Unexpected symbol: {:?}", lexer.char_at(0)), lexer.position());
+}
+
+// TODO: Function types such as (Number -> Number) -> Number
+pub fn parse_type(lexer: &mut Lexer) -> Option<Type> {
+	if lexer.try_peek(b"Number") {
+		Some(Type::Number)
+	} else if lexer.try_peek(b"String") {
+		Some(Type::String)
+	} else if lexer.try_peek(b"Hex") {
+		Some(Type::Hex)
+	} else if lexer.try_peek(b"Dimension") {
+		Some(Type::Dimension)
+	} else if lexer.try_peek(b"Bool") {
+		Some(Type::Bool)
+	} else if lexer.try_char('(') {
+		lexer.skip_whitespace();
+
+		if lexer.try_char(')') {
+			Some(Type::Tuple(Vec::new()))
+		} else {
+			let mut types = Vec::new();
+
+			loop {
+				if let Some(t) = parse_type(lexer) {
+					types.push(t);
+					lexer.skip_whitespace();
+
+					if lexer.try_char(')') {
+						break;
+					} else if !lexer.try_char(',') {
+						unexpected(lexer);
+						exit(0);
+					}
+
+					lexer.skip_whitespace();
+				} else if lexer.try_char(')') {
+					break;
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			}
+
+			Some(Type::Tuple(types))
+		}
+	} else if lexer.try_char('[') {
+		lexer.skip_whitespace();
+
+		if let Some(t) = parse_type(lexer) {
+			lexer.skip_whitespace();
+
+			if lexer.try_char(']') {
+				Some(Type::List(Box::new(t)))
+			} else {
+				unexpected(lexer);
+				exit(0);
+			}
+		} else {
+			unexpected(lexer);
+			exit(0);
+		}
+	} else if lexer.try_char('{') {
+		lexer.skip_whitespace();
+
+		if lexer.try_char('}') {
+			Some(Type::Record(FnvHashMap::default()))
+		} else {
+			let mut types = FnvHashMap::default();
+
+			loop {
+				if let Some(s) = lexer.try_symbol() {
+					lexer.skip_whitespace();
+
+					if lexer.try_peek(b"::") {
+						lexer.skip_whitespace();
+
+						if let Some(t) = parse_type(lexer) {
+							types.insert(s, t);
+							lexer.skip_whitespace();
+
+							if lexer.try_char('}') {
+								break;
+							} else if !lexer.try_char(',') {
+								unexpected(lexer);
+								exit(0);
+							}
+
+							lexer.skip_whitespace();
+						}
+					} else {
+						unexpected(lexer);
+						exit(0);
+					}
+				} else if lexer.try_char('}') {
+					break;
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			}
+
+			Some(Type::Record(types))
+		}
+	} else if let Some(s) = lexer.try_symbol() {
+		Some(Type::Alias(s))
+	} else {
+		None
+	}
 }
 
 fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
@@ -245,17 +353,137 @@ fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
 	)
 }
 
-// fn parse_root_node(lexer: &mut Lexer) -> Node {
+// fn parse_selector(lexer: &mut Lexer) -> Option<Node> {
 
 // }
 
-pub fn parse(input: &[u8]) -> Vec<Expr> {
+fn parse_function(lexer: &mut Lexer) -> Option<Node> {
+	if let Some(s) = lexer.try_symbol() {
+		if lexer.try_char('(') {
+			lexer.skip_whitespace();
+
+			let params = if lexer.try_char(')') {
+				Vec::new()
+			} else {
+				let mut params = Vec::new();
+
+				loop {
+					if let Some(s) = lexer.try_symbol() {
+						params.push(s);
+						lexer.skip_whitespace();
+
+						if lexer.try_char(')') {
+							break;
+						} else if !lexer.try_char(',') {
+							unexpected(lexer);
+							exit(0);
+						}
+
+						lexer.skip_whitespace();
+					} else if lexer.try_char(')') {
+						break;
+					} else {
+						unexpected(lexer);
+						exit(0);
+					}
+				}
+
+				params
+			};
+
+			lexer.skip_whitespace();
+
+			let types = if lexer.try_peek(b"::") {
+				lexer.skip_whitespace();
+
+				if let Some(t) = parse_type(lexer) {
+					let mut types = vec![t];
+
+					while lexer.try_arrow() {
+						lexer.skip_whitespace();
+
+						if let Some(t) = parse_type(lexer) {
+							types.push(t);
+						} else {
+							unexpected(lexer);
+							exit(0);
+						}
+					}
+
+					if lexer.try_newline() {
+						types
+					} else {
+						unexpected(lexer);
+						exit(0);
+					}
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			} else {
+				unexpected(lexer);
+				exit(0);
+			};
+
+			let mut nodes = Vec::new();
+
+			loop {
+				while lexer.try_newline() {}
+
+				if lexer.try_indent(1) {
+					if let Some(e) = parse_expr(lexer) {
+						nodes.push(Node::Expr(e));
+					}
+				} else {
+					break;
+				}
+			}
+
+			Some(Node::Function(s, params, types, nodes))
+		} else {
+			unexpected(lexer);
+			exit(0);
+		}
+	} else {
+		None
+	}
+}
+
+// fn parse_definition(lexer: &mut Lexer) -> Option<Node> {
+
+// }
+
+// fn parse_enum(lexer: &mut Lexer) -> Option<Node> {
+
+// }
+
+fn parse_root_node(lexer: &mut Lexer) -> Option<Node> {
+	// if let Some(n) = parse_selector(lexer) {
+	// 	n
+	// } else 
+	if let Some(n) = parse_function(lexer) {
+		Some(n)
+	// } else if let Some(n) = parse_definition(lexer) {
+	// 	n
+	// } else if let Some(n) = parse_enum(lexer) {
+	// 	n
+	} else if lexer.try_newline() {
+		None
+	} else {
+		unexpected(lexer);
+		exit(0);
+	}
+}
+
+pub fn parse(input: &[u8]) -> Vec<Node> {
 	let mut lexer = Lexer::new(&input);
 	let mut ast = Vec::new();
 
 	while lexer.has_left() {
-		ast.push(parse_expr(&mut lexer).unwrap()); // temp
-		lexer.skip_whitespace(); // temp
+		match parse_root_node(&mut lexer) {
+			Some(n) => ast.push(n),
+			None => (),
+		}
 	}
 
 	ast

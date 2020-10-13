@@ -31,7 +31,6 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::collections::HashMap;
 use fnv::FnvHashMap;
 
 #[derive(Debug)]
@@ -41,11 +40,11 @@ pub enum Type {
 	Hex,
 	Dimension,
 	Bool,
-	Enum(String),
 	Tuple(Vec<Type>),
 	List(Box<Type>),
-	Record(HashMap<String, Type>),
+	Record(FnvHashMap<String, Type>),
 	Function(Vec<Type>),
+	Alias(String),
 }
 
 #[derive(Debug, Clone)]
