@@ -151,16 +151,156 @@ pub fn parse_type(lexer: &mut Lexer) -> Option<Type> {
 	}
 }
 
-fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
-	let a =
+fn parse_tuple(lexer: &mut Lexer) -> Option<Expr> {
+	if lexer.try_char('(') {
+		lexer.skip_whitespace();
+
+		if lexer.try_char(')') {
+			Some(Expr::Tuple(Vec::new()))
+		} else {
+			let mut contents = Vec::new();
+			let mut trailing = false;
+
+			loop {
+				if let Some(e) = parse_expr(lexer) {
+					contents.push(e);
+					lexer.skip_whitespace();
+
+					if lexer.try_char(')') {
+						break;
+					} else if !lexer.try_char(',') {
+						unexpected(lexer);
+						exit(0);
+					}
+
+					lexer.skip_whitespace();
+				} else if lexer.try_char(')') {
+					trailing = true;
+					break;
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			}
+
+			if contents.len() == 1 && !trailing {
+				Some(contents.get(0).unwrap().clone())
+			} else {
+				Some(Expr::Tuple(contents))
+			}
+		}
+	} else {
+		None
+	}
+}
+
+fn parse_list(lexer: &mut Lexer) -> Option<Expr> {
+	if lexer.try_char('[') {
+		lexer.skip_whitespace();
+
+		if lexer.try_char(']') {
+			Some(Expr::List(Vec::new()))
+		} else {
+			let mut contents = Vec::new();
+
+			loop {
+				if let Some(e) = parse_expr(lexer) {
+					contents.push(e);
+					lexer.skip_whitespace();
+
+					if lexer.try_char(']') {
+						break;
+					} else if !lexer.try_char(',') {
+						unexpected(lexer);
+						exit(0);
+					}
+
+					lexer.skip_whitespace();
+				} else if lexer.try_char(']') {
+					break;
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			}
+
+			Some(Expr::List(contents))
+		}
+	} else {
+		None
+	}
+}
+
+fn parse_record(lexer: &mut Lexer) -> Option<Expr> {
+	if lexer.try_char('{') {
+		lexer.skip_whitespace();
+
+		if lexer.try_char('}') {
+			Some(Expr::Record(FnvHashMap::default()))
+		} else {
+			let mut contents = FnvHashMap::default();
+
+			loop {
+				if let Some(s) = lexer.try_symbol() {
+					lexer.skip_whitespace();
+
+					if lexer.try_char(':') {
+						lexer.skip_whitespace();
+
+						if let Some(e) = parse_expr(lexer) {
+							contents.insert(s, e);
+							lexer.skip_whitespace();
+
+							if lexer.try_char('}') {
+								break;
+							} else if !lexer.try_char(',') {
+								unexpected(lexer);
+								exit(0);
+							}
+
+							lexer.skip_whitespace();
+						}
+					} else {
+						unexpected(lexer);
+						exit(0);
+					}
+				} else if lexer.try_char('}') {
+					break;
+				} else {
+					unexpected(lexer);
+					exit(0);
+				}
+			}
+
+			Some(Expr::Record(contents))
+		}
+	} else {
+		None
+	}
+}
+
+fn parse_name(lexer: &mut Lexer) -> Option<Expr> {
+	if lexer.try_char('$') {
+		if let Some(s) = lexer.try_symbol() {
+			Some(Expr::Symbol(s))
+		} else {
+			unexpected(lexer);
+			exit(0);
+		}
+	} else {
+		None
+	}
+}
+
+fn parse_call_or_symbol(lexer: &mut Lexer) -> Option<Expr> {
+	if let Some(s) = lexer.try_symbol() {
 		if lexer.try_char('(') {
 			lexer.skip_whitespace();
 
 			if lexer.try_char(')') {
-				Expr::Tuple(Vec::new())
+				Some(Expr::Call(s, Vec::new()))
 			} else {
 				let mut contents = Vec::new();
-				let mut trailing = false;
 
 				loop {
 					if let Some(e) = parse_expr(lexer) {
@@ -176,7 +316,6 @@ fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
 
 						lexer.skip_whitespace();
 					} else if lexer.try_char(')') {
-						trailing = true;
 						break;
 					} else {
 						unexpected(lexer);
@@ -184,92 +323,26 @@ fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
 					}
 				}
 
-				if contents.len() == 1 && !trailing {
-					contents.get(0).unwrap().clone()
-				} else {
-					Expr::Tuple(contents)
-				}
+				Some(Expr::Call(s, contents))
 			}
-		} else if lexer.try_char('[') {
-			lexer.skip_whitespace();
+		} else {
+			Some(Expr::Symbol(s))
+		}
+	} else {
+		None
+	}
+}
 
-			if lexer.try_char(']') {
-				Expr::List(Vec::new())
-			} else {
-				let mut contents = Vec::new();
-
-				loop {
-					if let Some(e) = parse_expr(lexer) {
-						contents.push(e);
-						lexer.skip_whitespace();
-
-						if lexer.try_char(']') {
-							break;
-						} else if !lexer.try_char(',') {
-							unexpected(lexer);
-							exit(0);
-						}
-
-						lexer.skip_whitespace();
-					} else if lexer.try_char(']') {
-						break;
-					} else {
-						unexpected(lexer);
-						exit(0);
-					}
-				}
-
-				Expr::List(contents)
-			}
-		} else if lexer.try_char('{') {
-			lexer.skip_whitespace();
-
-			if lexer.try_char('}') {
-				Expr::Record(FnvHashMap::default())
-			} else {
-				let mut contents = FnvHashMap::default();
-
-				loop {
-					if let Some(s) = lexer.try_symbol() {
-						lexer.skip_whitespace();
-
-						if lexer.try_char(':') {
-							lexer.skip_whitespace();
-
-							if let Some(e) = parse_expr(lexer) {
-								contents.insert(s, e);
-								lexer.skip_whitespace();
-
-								if lexer.try_char('}') {
-									break;
-								} else if !lexer.try_char(',') {
-									unexpected(lexer);
-									exit(0);
-								}
-
-								lexer.skip_whitespace();
-							}
-						} else {
-							unexpected(lexer);
-							exit(0);
-						}
-					} else if lexer.try_char('}') {
-						break;
-					} else {
-						unexpected(lexer);
-						exit(0);
-					}
-				}
-
-				Expr::Record(contents)
-			}
-		} else if lexer.try_char('$') {
-			if let Some(s) = lexer.try_symbol() {
-				Expr::Symbol(s)
-			} else {
-				unexpected(lexer);
-				exit(0);
-			}
+fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
+	let a =
+		if let Some(e) = parse_tuple(lexer) {
+			e
+		} else if let Some(e) = parse_list(lexer) {
+			e
+		} else if let Some(e) = parse_record(lexer) {
+			e
+		} else if let Some(e) = parse_name(lexer) {
+			e
 		} else if let Some(n) = lexer.try_number() {
 			if let Some(u) = lexer.try_symbol() {
 				Expr::Dimension(n, u)
@@ -282,41 +355,8 @@ fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
 			Expr::Hex(h)
 		} else if let Some(b) = lexer.try_bool() {
 			Expr::Bool(b)
-		} else if let Some(s) = lexer.try_symbol() {
-			if lexer.try_char('(') {
-				lexer.skip_whitespace();
-
-				if lexer.try_char(')') {
-					Expr::Call(s, Vec::new())
-				} else {
-					let mut contents = Vec::new();
-
-					loop {
-						if let Some(e) = parse_expr(lexer) {
-							contents.push(e);
-							lexer.skip_whitespace();
-
-							if lexer.try_char(')') {
-								break;
-							} else if !lexer.try_char(',') {
-								unexpected(lexer);
-								exit(0);
-							}
-
-							lexer.skip_whitespace();
-						} else if lexer.try_char(')') {
-							break;
-						} else {
-							unexpected(lexer);
-							exit(0);
-						}
-					}
-
-					Expr::Call(s, contents)
-				}
-			} else {
-				Expr::Symbol(s)
-			}
+		} else if let Some(e) = parse_call_or_symbol(lexer) {
+			e
 		} else {
 			return None;
 		};
@@ -356,6 +396,19 @@ fn parse_expr(lexer: &mut Lexer) -> Option<Expr> {
 // fn parse_selector(lexer: &mut Lexer) -> Option<Node> {
 
 // }
+
+fn parse_atcss(lexer: &mut Lexer) -> Option<Node> {
+	if lexer.try_peek(b"@css") {
+		lexer.skip_whitespace();
+		if let Some(r) = parse_expr(lexer) {
+			return Some(Node::AtCSS(r));
+		} else {
+			unexpected(lexer);
+			exit(0);
+		}
+	}
+	None
+}
 
 fn parse_function(lexer: &mut Lexer) -> Option<Node> {
 	if let Some(s) = lexer.try_symbol() {
@@ -433,14 +486,8 @@ fn parse_function(lexer: &mut Lexer) -> Option<Node> {
 				if lexer.try_indent(1) {
 					if let Some(e) = parse_expr(lexer) {
 						nodes.push(Node::Expr(e));
-					} else if lexer.try_peek(b"@css") {
-						lexer.skip_whitespace();
-						if let Some(r) = parse_expr(lexer) {
-							nodes.push(Node::AtCSS(r));
-						} else {
-							unexpected(lexer);
-							exit(0);
-						}
+					} else if let Some(e) = parse_atcss(lexer) {
+						nodes.push(e);
 					} 
 				} else {
 					break;

@@ -1,2 +1,2 @@
 color(col) :: Hex -> CSS
-  	@css { color: "$col" }
+	@css { color: "$col" }
