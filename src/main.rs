@@ -37,10 +37,10 @@ mod error;
 mod ast;
 mod parser;
 
-use parser::parse;
+//use parser::parse;
 
 fn main() {
     let input = fs::read("example.glz").unwrap();
 
-    println!("{:?}", parse(&input));
+    println!("{:#?}", parser::parse(&input));
 }

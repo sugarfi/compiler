@@ -33,6 +33,7 @@
 
 use fnv::FnvHashMap;
 
+#[allow(dead_code)] // Clear up a few warnings
 #[derive(Debug)]
 pub enum Type {
 	Number,
@@ -47,6 +48,7 @@ pub enum Type {
 	Alias(String),
 }
 
+#[allow(dead_code)] // Clear up a few warnings
 #[derive(Debug, Clone)]
 pub enum Expr {
 	Number(f32),
@@ -66,6 +68,7 @@ pub enum Expr {
 	If(Box<Expr>, Vec<Expr>, Vec<Expr>),
 }
 
+#[allow(dead_code)] // Clear up a few warnings
 #[derive(Debug)]
 pub enum Node {
 	Selector(Vec<String>, Vec<Node>),
@@ -74,7 +77,7 @@ pub enum Node {
 	Definition(String, Expr),
 	Enum(String, Vec<String>),
 	TypeAlias(String, Type),
-	AtCSS(FnvHashMap<String, Expr>),
+	AtCSS(Expr),
 	AtData(FnvHashMap<String, Expr>),
 	AtEvent(Vec<Node>),
 	Where(Vec<(String, Expr)>),

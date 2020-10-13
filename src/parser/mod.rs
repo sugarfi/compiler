@@ -433,7 +433,15 @@ fn parse_function(lexer: &mut Lexer) -> Option<Node> {
 				if lexer.try_indent(1) {
 					if let Some(e) = parse_expr(lexer) {
 						nodes.push(Node::Expr(e));
-					}
+					} else if lexer.try_peek(b"@css") {
+						lexer.skip_whitespace();
+						if let Some(r) = parse_expr(lexer) {
+							nodes.push(Node::AtCSS(r));
+						} else {
+							unexpected(lexer);
+							exit(0);
+						}
+					} 
 				} else {
 					break;
 				}

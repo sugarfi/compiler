@@ -137,6 +137,17 @@ impl<'a> Lexer<'a> {
 		}
 	}
 
+	pub fn try_whitespace(&mut self) -> bool {
+		if self.is_whitespace(&self.at(0)) {
+			while self.is_whitespace(&self.at(0)) {
+				self.advance(1);
+			}
+			true
+		} else {
+			false
+		}
+	}
+
 	pub fn try_char(&mut self, c: char) -> bool {
 		if self.char_at(0) == c {
 			self.advance(1);

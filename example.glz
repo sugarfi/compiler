@@ -1,5 +1,2 @@
-add(a, b) :: Number -> Number -> Number
-	$a + $b
-
-stuff(a, b, c, d) :: String -> (Color, Hex, Bool) -> [Dimension] -> { age :: Number }
-	3.2 + 4 + 5
+color(col) :: Hex -> CSS
+  	@css { color: "$col" }
